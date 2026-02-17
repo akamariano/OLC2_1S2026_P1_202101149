@@ -37,12 +37,13 @@ statement
     : varShortDecl
     | varDecl
     | assignment
-    | ifStatement
-    | forStatement
+    | ifStmt          // ← cambiado
+    | forStmt         // ← cambiado
     | breakStmt
     | continueStmt
     | returnStmt
     | functionCall ';'
+    | block
     ;
 
 // ---------------- VARIABLE DECLARATION ----------------
@@ -71,11 +72,11 @@ assignment
 
 // ---------------- CONTROL FLOW ----------------
 
-ifStatement
+ifStmt      // ← RENOMBRADO
     : IF expression block
     ;
 
-forStatement
+forStmt     // ← RENOMBRADO
     : FOR forInit ';' expression ';' forPost block
     ;
 

@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Generated from grammar/Golampi.g4 by ANTLR 4.13.1
+ * Generated from Golampi.g4 by ANTLR 4.13.1
  */
 
 use Antlr\Antlr4\Runtime\Tree\AbstractParseTreeVisitor;
@@ -151,7 +151,7 @@ class GolampiBaseVisitor extends AbstractParseTreeVisitor implements GolampiVisi
 	 * The default implementation returns the result of calling
 	 * {@see self::visitChildren()} on `context`.
 	 */
-	public function visitIfStatement(Context\IfStatementContext $context)
+	public function visitIfStmt(Context\IfStmtContext $context)
 	{
 	    return $this->visitChildren($context);
 	}
@@ -162,7 +162,7 @@ class GolampiBaseVisitor extends AbstractParseTreeVisitor implements GolampiVisi
 	 * The default implementation returns the result of calling
 	 * {@see self::visitChildren()} on `context`.
 	 */
-	public function visitForStatement(Context\ForStatementContext $context)
+	public function visitForStmt(Context\ForStmtContext $context)
 	{
 	    return $this->visitChildren($context);
 	}

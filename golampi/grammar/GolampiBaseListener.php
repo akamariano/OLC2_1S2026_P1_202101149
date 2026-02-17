@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Generated from grammar/Golampi.g4 by ANTLR 4.13.1
+ * Generated from Golampi.g4 by ANTLR 4.13.1
  */
 
 
@@ -177,27 +177,27 @@ class GolampiBaseListener implements GolampiListener
 	 *
 	 * The default implementation does nothing.
 	 */
-	public function enterIfStatement(Context\IfStatementContext $context): void {}
+	public function enterIfStmt(Context\IfStmtContext $context): void {}
 
 	/**
 	 * {@inheritdoc}
 	 *
 	 * The default implementation does nothing.
 	 */
-	public function exitIfStatement(Context\IfStatementContext $context): void {}
+	public function exitIfStmt(Context\IfStmtContext $context): void {}
 	/**
 	 * {@inheritdoc}
 	 *
 	 * The default implementation does nothing.
 	 */
-	public function enterForStatement(Context\ForStatementContext $context): void {}
+	public function enterForStmt(Context\ForStmtContext $context): void {}
 
 	/**
 	 * {@inheritdoc}
 	 *
 	 * The default implementation does nothing.
 	 */
-	public function exitForStatement(Context\ForStatementContext $context): void {}
+	public function exitForStmt(Context\ForStmtContext $context): void {}
 	/**
 	 * {@inheritdoc}
 	 *

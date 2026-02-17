@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Generated from grammar/Golampi.g4 by ANTLR 4.13.1
+ * Generated from Golampi.g4 by ANTLR 4.13.1
  */
 
 use Antlr\Antlr4\Runtime\Tree\ParseTreeListener;
@@ -132,25 +132,25 @@ interface GolampiListener extends ParseTreeListener {
 	 */
 	public function exitAssignment(Context\AssignmentContext $context): void;
 	/**
-	 * Enter a parse tree produced by {@see GolampiParser::ifStatement()}.
+	 * Enter a parse tree produced by {@see GolampiParser::ifStmt()}.
 	 * @param $context The parse tree.
 	 */
-	public function enterIfStatement(Context\IfStatementContext $context): void;
+	public function enterIfStmt(Context\IfStmtContext $context): void;
 	/**
-	 * Exit a parse tree produced by {@see GolampiParser::ifStatement()}.
+	 * Exit a parse tree produced by {@see GolampiParser::ifStmt()}.
 	 * @param $context The parse tree.
 	 */
-	public function exitIfStatement(Context\IfStatementContext $context): void;
+	public function exitIfStmt(Context\IfStmtContext $context): void;
 	/**
-	 * Enter a parse tree produced by {@see GolampiParser::forStatement()}.
+	 * Enter a parse tree produced by {@see GolampiParser::forStmt()}.
 	 * @param $context The parse tree.
 	 */
-	public function enterForStatement(Context\ForStatementContext $context): void;
+	public function enterForStmt(Context\ForStmtContext $context): void;
 	/**
-	 * Exit a parse tree produced by {@see GolampiParser::forStatement()}.
+	 * Exit a parse tree produced by {@see GolampiParser::forStmt()}.
 	 * @param $context The parse tree.
 	 */
-	public function exitForStatement(Context\ForStatementContext $context): void;
+	public function exitForStmt(Context\ForStmtContext $context): void;
 	/**
 	 * Enter a parse tree produced by {@see GolampiParser::forInit()}.
 	 * @param $context The parse tree.

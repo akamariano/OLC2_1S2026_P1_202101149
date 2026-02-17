@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Generated from grammar/Golampi.g4 by ANTLR 4.13.1
+ * Generated from Golampi.g4 by ANTLR 4.13.1
  */
 
 use Antlr\Antlr4\Runtime\Tree\ParseTreeVisitor;
@@ -120,22 +120,22 @@ interface GolampiVisitor extends ParseTreeVisitor
 	public function visitAssignment(Context\AssignmentContext $context);
 
 	/**
-	 * Visit a parse tree produced by {@see GolampiParser::ifStatement()}.
+	 * Visit a parse tree produced by {@see GolampiParser::ifStmt()}.
 	 *
-	 * @param Context\IfStatementContext $context The parse tree.
+	 * @param Context\IfStmtContext $context The parse tree.
 	 *
 	 * @return mixed The visitor result.
 	 */
-	public function visitIfStatement(Context\IfStatementContext $context);
+	public function visitIfStmt(Context\IfStmtContext $context);
 
 	/**
-	 * Visit a parse tree produced by {@see GolampiParser::forStatement()}.
+	 * Visit a parse tree produced by {@see GolampiParser::forStmt()}.
 	 *
-	 * @param Context\ForStatementContext $context The parse tree.
+	 * @param Context\ForStmtContext $context The parse tree.
 	 *
 	 * @return mixed The visitor result.
 	 */
-	public function visitForStatement(Context\ForStatementContext $context);
+	public function visitForStmt(Context\ForStmtContext $context);
 
 	/**
 	 * Visit a parse tree produced by {@see GolampiParser::forInit()}.
