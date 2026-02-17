@@ -1,0 +1,17 @@
+{
+    "name": "mariano/golampi",
+    "autoload": {
+        "psr-4": {
+            "Mariano\\Golampi\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "akamariano",
+            "email": "marianitorac2002@gmail.com"
+        }
+    ],
+    "require": {
+        "antlr/antlr4-php-runtime": "^0.9.1"
+    }
+}

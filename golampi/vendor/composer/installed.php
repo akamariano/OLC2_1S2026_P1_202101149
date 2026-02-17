@@ -1,0 +1,41 @@
+<?php return array(
+    'root' => array(
+        'pretty_version' => '1.0.0+no-version-set',
+        'version' => '1.0.0.0',
+        'type' => 'library',
+        'install_path' => __DIR__ . '/../../',
+        'aliases' => array(),
+        'reference' => NULL,
+        'name' => 'mariano/golampi',
+        'dev' => true,
+    ),
+    'versions' => array(
+        'antlr/antlr4-php-runtime' => array(
+            'pretty_version' => '0.9.1',
+            'version' => '0.9.1.0',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../antlr/antlr4-php-runtime',
+            'aliases' => array(),
+            'reference' => '3afe41b19f8ea3d6b10400397712cb8181da5e25',
+            'dev_requirement' => false,
+        ),
+        'mariano/golampi' => array(
+            'pretty_version' => '1.0.0+no-version-set',
+            'version' => '1.0.0.0',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../../',
+            'aliases' => array(),
+            'reference' => NULL,
+            'dev_requirement' => false,
+        ),
+        'psr/log' => array(
+            'pretty_version' => '3.0.2',
+            'version' => '3.0.2.0',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../psr/log',
+            'aliases' => array(),
+            'reference' => 'f16e1d5863e37f8d8c2a01719f5b34baa2b714d3',
+            'dev_requirement' => false,
+        ),
+    ),
+);
