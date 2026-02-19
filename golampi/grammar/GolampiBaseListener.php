@@ -229,6 +229,45 @@ class GolampiBaseListener implements GolampiListener
 	 *
 	 * The default implementation does nothing.
 	 */
+	public function enterSwitchStmt(Context\SwitchStmtContext $context): void {}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function exitSwitchStmt(Context\SwitchStmtContext $context): void {}
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function enterCaseClause(Context\CaseClauseContext $context): void {}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function exitCaseClause(Context\CaseClauseContext $context): void {}
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function enterDefaultClause(Context\DefaultClauseContext $context): void {}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function exitDefaultClause(Context\DefaultClauseContext $context): void {}
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
 	public function enterBreakStmt(Context\BreakStmtContext $context): void {}
 
 	/**
@@ -276,6 +315,19 @@ class GolampiBaseListener implements GolampiListener
 	 * The default implementation does nothing.
 	 */
 	public function exitFunctionCall(Context\FunctionCallContext $context): void {}
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function enterQualifiedName(Context\QualifiedNameContext $context): void {}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function exitQualifiedName(Context\QualifiedNameContext $context): void {}
 	/**
 	 * {@inheritdoc}
 	 *

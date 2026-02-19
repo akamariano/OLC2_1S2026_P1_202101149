@@ -37,9 +37,15 @@ class SymbolTable {
     }
 
     public function exitScope() {
-        $scope = array_pop($this->scopes);
-        $this->scopeHistory[] = $scope;
+
+    if (count($this->scopes) <= 1) {
+        return; // nunca eliminar el scope global
     }
+
+    $scope = array_pop($this->scopes);
+    $this->scopeHistory[] = $scope;
+}
+
 
     public function defineVariable(string $name, $symbol) {
         $currentScope = &$this->scopes[count($this->scopes) - 1];
@@ -64,18 +70,18 @@ class SymbolTable {
        SERIALIZACIÓN PARA JSON
        ======================== */
 
-    public function toArray(): array {
+   public function toArray(): array {
 
     $functionsArray = [];
 
     foreach ($this->functions as $name => $functionSymbol) {
-
-        $functionsArray[$name] = $functionSymbol->toArray();
+        $functionsArray[$name] = method_exists($functionSymbol, 'toArray')
+            ? $functionSymbol->toArray()
+            : $name;
     }
 
     $scopesArray = [];
 
-    // Unimos scopes activos + historial
     $allScopes = array_merge($this->scopes, $this->scopeHistory);
 
     foreach ($allScopes as $index => $scope) {
@@ -96,11 +102,17 @@ class SymbolTable {
         "scopes" => $scopesArray
     ];
 }
+
 public function resolveInCurrentScope(string $name) {
+
+    if (empty($this->scopes)) {
+        return null;
+    }
 
     $currentScope = $this->scopes[count($this->scopes) - 1];
 
     return $currentScope[$name] ?? null;
 }
+
 
 }

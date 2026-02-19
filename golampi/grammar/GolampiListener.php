@@ -172,6 +172,36 @@ interface GolampiListener extends ParseTreeListener {
 	 */
 	public function exitForPost(Context\ForPostContext $context): void;
 	/**
+	 * Enter a parse tree produced by {@see GolampiParser::switchStmt()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterSwitchStmt(Context\SwitchStmtContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::switchStmt()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitSwitchStmt(Context\SwitchStmtContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::caseClause()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterCaseClause(Context\CaseClauseContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::caseClause()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitCaseClause(Context\CaseClauseContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::defaultClause()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterDefaultClause(Context\DefaultClauseContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::defaultClause()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitDefaultClause(Context\DefaultClauseContext $context): void;
+	/**
 	 * Enter a parse tree produced by {@see GolampiParser::breakStmt()}.
 	 * @param $context The parse tree.
 	 */
@@ -211,6 +241,16 @@ interface GolampiListener extends ParseTreeListener {
 	 * @param $context The parse tree.
 	 */
 	public function exitFunctionCall(Context\FunctionCallContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::qualifiedName()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterQualifiedName(Context\QualifiedNameContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::qualifiedName()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitQualifiedName(Context\QualifiedNameContext $context): void;
 	/**
 	 * Enter a parse tree produced by {@see GolampiParser::argList()}.
 	 * @param $context The parse tree.

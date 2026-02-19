@@ -156,6 +156,33 @@ interface GolampiVisitor extends ParseTreeVisitor
 	public function visitForPost(Context\ForPostContext $context);
 
 	/**
+	 * Visit a parse tree produced by {@see GolampiParser::switchStmt()}.
+	 *
+	 * @param Context\SwitchStmtContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitSwitchStmt(Context\SwitchStmtContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::caseClause()}.
+	 *
+	 * @param Context\CaseClauseContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitCaseClause(Context\CaseClauseContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::defaultClause()}.
+	 *
+	 * @param Context\DefaultClauseContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitDefaultClause(Context\DefaultClauseContext $context);
+
+	/**
 	 * Visit a parse tree produced by {@see GolampiParser::breakStmt()}.
 	 *
 	 * @param Context\BreakStmtContext $context The parse tree.
@@ -190,6 +217,15 @@ interface GolampiVisitor extends ParseTreeVisitor
 	 * @return mixed The visitor result.
 	 */
 	public function visitFunctionCall(Context\FunctionCallContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::qualifiedName()}.
+	 *
+	 * @param Context\QualifiedNameContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitQualifiedName(Context\QualifiedNameContext $context);
 
 	/**
 	 * Visit a parse tree produced by {@see GolampiParser::argList()}.

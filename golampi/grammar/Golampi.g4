@@ -37,23 +37,24 @@ statement
     : varShortDecl
     | varDecl
     | assignment
-    | ifStmt          // ← cambiado
-    | forStmt         // ← cambiado
+    | ifStmt
+    | forStmt
+    | switchStmt
     | breakStmt
     | continueStmt
     | returnStmt
-    | functionCall ';'
+    | functionCall
     | block
     ;
 
 // ---------------- VARIABLE DECLARATION ----------------
 
 varDecl
-    : VAR idList type ('=' expList)? ';'
+    : VAR idList type ('=' expList)? ';'?
     ;
 
 varShortDecl
-    : idList ':=' expList ';'
+    : idList ':=' expList ';'?
     ;
 
 idList
@@ -67,17 +68,21 @@ expList
 // ---------------- ASSIGNMENT ----------------
 
 assignment
-    : ID '=' expression ';'
+    : ID '=' expression ';'?
     ;
 
 // ---------------- CONTROL FLOW ----------------
 
-ifStmt      // ← RENOMBRADO
+ifStmt
     : IF expression block
     ;
 
-forStmt     // ← RENOMBRADO
+// for
+
+forStmt
     : FOR forInit ';' expression ';' forPost block
+    | FOR expression block
+    | FOR block
     ;
 
 forInit
@@ -91,22 +96,40 @@ forPost
     | ID '=' expression
     ;
 
+// ---------------- SWITCH ----------------
+
+switchStmt
+    : SWITCH expression '{' caseClause* defaultClause? '}'
+    ;
+
+caseClause
+    : CASE expList ':' statement*
+    ;
+
+defaultClause
+    : DEFAULT ':' statement*
+    ;
+
 breakStmt
-    : BREAK ';'
+    : BREAK ';'?
     ;
 
 continueStmt
-    : CONTINUE ';'
+    : CONTINUE ';'?
     ;
 
 returnStmt
-    : RETURN expression? ';'
+    : RETURN expression? ';'?
     ;
 
 // ---------------- FUNCTION CALL ----------------
 
 functionCall
-    : ID '(' argList? ')'
+    : qualifiedName '(' argList? ')'
+    ;
+
+qualifiedName
+    : ID ('.' ID)*
     ;
 
 argList
@@ -146,6 +169,9 @@ FUNC        : 'func';
 VAR         : 'var';
 IF          : 'if';
 FOR         : 'for';
+SWITCH      : 'switch';
+CASE        : 'case';
+DEFAULT     : 'default';
 BREAK       : 'break';
 CONTINUE    : 'continue';
 RETURN      : 'return';

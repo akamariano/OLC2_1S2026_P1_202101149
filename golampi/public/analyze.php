@@ -15,6 +15,9 @@ require_once __DIR__ . '/../grammar/GolampiBaseListener.php';
 /* -------- SEMANTIC -------- */
 require_once __DIR__ . '/../semantic/SemanticVisitor.php';
 
+/* -------- INTERPRETER -------- */
+require_once __DIR__ . '/../interpreter/Executor.php';
+
 use Antlr\Antlr4\Runtime\InputStream;
 use Antlr\Antlr4\Runtime\CommonTokenStream;
 
@@ -23,41 +26,49 @@ $code = $data["code"] ?? "";
 
 try {
 
-    // rear input
+    /* =============================
+       PARSER
+    ============================== */
+
     $input = InputStream::fromString($code);
-
-    // Crear lexer
     $lexer = new GolampiLexer($input);
-
-    // Crear token stream
     $tokens = new CommonTokenStream($lexer);
-
-    //  Crear parser
     $parser = new GolampiParser($tokens);
 
-    // Obtener árbol
     $tree = $parser->program();
 
-    // Verificar errores sintácticos
     if ($parser->getNumberOfSyntaxErrors() > 0) {
         throw new Exception("Errores sintácticos detectados.");
     }
 
-    //  Ejecutar análisis semántico
-    $visitor = new SemanticVisitor();
-    $visitor->visit($tree);
+    /* =============================
+       SEMANTIC
+    ============================== */
 
-    //  Respuesta exitosa
+    $semantic = new SemanticVisitor();
+    $semantic->visit($tree);
+
+    /* =============================
+       EXECUTION
+    ============================== */
+
+    $executor = new \Interpreter\Executor();
+    $runtimeOutput = $executor->visit($tree);
+
+    /* =============================
+       RESPONSE
+    ============================== */
+
     echo json_encode([
         "success" => true,
-        "output" => $visitor->getOutput(),
-        "symbols" => $visitor->getSymbolTable()
-    ]);
+        "output" => $runtimeOutput ?: "Sin salida",
+        "symbols" => $semantic->getSymbolTable()->toArray()
+    ], JSON_PRETTY_PRINT);
 
 } catch (Throwable $e) {
 
     echo json_encode([
         "success" => false,
         "error" => $e->getMessage()
-    ]);
+    ], JSON_PRETTY_PRINT);
 }
