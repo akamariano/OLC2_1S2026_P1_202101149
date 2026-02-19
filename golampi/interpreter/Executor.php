@@ -294,5 +294,43 @@ class Executor extends \GolampiBaseVisitor {
         $this->setVar($name, $value);
     }
 }
+/* ================= IF ================= */
+public function visitIfStmt($ctx)
+{
+    $condition = $this->visit($ctx->expression());
+
+    if ($condition) {
+        // Ejecutar bloque del IF
+        return $this->visit($ctx->block(0));
+    }
+
+    // Si hay ELSE
+    if ($ctx->ELSE()) {
+
+        // else if
+        if ($ctx->ifStmt()) {
+            return $this->visit($ctx->ifStmt());
+        }
+
+        // else final
+        if (count($ctx->block()) > 1) {
+            return $this->visit($ctx->block(1));
+        }
+    }
+
+    return null;
+}
+/* ================= RETURN ================= */
+public function visitReturnStmt($ctx)
+{
+    $value = null;
+
+    if ($ctx->expression()) {
+        $value = $this->visit($ctx->expression());
+    }
+
+    throw new ReturnException($value);
+}
+
 
 }

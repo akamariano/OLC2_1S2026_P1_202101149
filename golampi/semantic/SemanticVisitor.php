@@ -9,6 +9,9 @@ class SemanticVisitor extends GolampiBaseVisitor
     private $symbolTable;
     private $loopDepth = 0;
     private $switchDepth = 0;
+    private $currentFunction = null;
+    private $hasReturn = false;
+
 
     public function __construct()
     {
@@ -30,42 +33,116 @@ class SemanticVisitor extends GolampiBaseVisitor
     }
 
     // ---------------- FUNCTIONS ----------------
-    public function visitFunctionDecl($ctx)
-    {
-        $name = $ctx->ID()->getText();
-        $line = $ctx->getStart()->getLine();
-        $paramsArray = [];
+ public function visitFunctionDecl($ctx)
+{
+    $name = $ctx->ID()->getText();
+    $line = $ctx->getStart()->getLine();
+    $paramsArray = [];
 
-        if ($ctx->paramList()) {
-            foreach ($ctx->paramList()->param() as $param) {
-                $paramName = $param->ID()->getText();
-                $paramType = $param->type()->getText();
-                $paramsArray[] = [
-                    "name" => $paramName,
-                    "type" => $paramType
-                ];
+    if ($ctx->paramList()) {
+        foreach ($ctx->paramList()->param() as $param) {
+            $paramName = $param->ID()->getText();
+            $paramType = $param->type()->getText();
+            $paramsArray[] = [
+                "name" => $paramName,
+                "type" => $paramType
+            ];
+        }
+    }
+
+    $returnTypes = [];
+
+    if ($ctx->returnType()) {
+        $types = $ctx->returnType()->type();
+
+        if (is_array($types)) {
+            foreach ($types as $typeCtx) {
+                $returnTypes[] = $typeCtx->getText();
             }
+        } else {
+            $returnTypes[] = $types->getText();
         }
+    }
 
-        // Tu constructor espera array
-        $returnTypes = [];
-        $this->symbolTable->defineFunction(
-            $name,
-            new FunctionSymbol($name, $paramsArray, $returnTypes, $line)
+    // Registrar firma
+    $this->symbolTable->defineFunction(
+        $name,
+        new FunctionSymbol($name, $paramsArray, $returnTypes, $line)
+    );
+
+    //Guardar estado de función actual
+    $this->currentFunction = [
+        "name" => $name,
+        "returnTypes" => $returnTypes
+    ];
+
+    $this->hasReturn = false;
+
+    // Entrar a scope de función
+    $this->symbolTable->enterScope();
+
+    foreach ($paramsArray as $param) {
+        $this->symbolTable->defineVariable(
+            $param["name"],
+            new VariableSymbol($param["name"], $param["type"])
         );
+    }
 
-        $this->symbolTable->enterScope();
-        foreach ($paramsArray as $param) {
-            $this->symbolTable->defineVariable(
-                $param["name"],
-                new VariableSymbol($param["name"], $param["type"])
-            );
-        }
-        $this->visit($ctx->block());
-        $this->symbolTable->exitScope();
+    $this->visit($ctx->block());
 
+    $this->symbolTable->exitScope();
+
+    // VALIDAR RETURN OBLIGATORIO
+    if (count($returnTypes) > 0 && !$this->hasReturn) {
+        throw new Exception("Función '$name' debe retornar un valor tipo {$returnTypes[0]}.");
+    }
+
+    // Limpiar estado
+    $this->currentFunction = null;
+
+    return null;
+}
+
+
+public function visitFunctionCall($ctx)
+{
+    $name = $ctx->qualifiedName()->getText();
+
+    // fmt.Println no devuelve nada
+    if ($name === "fmt.Println") {
         return null;
     }
+
+    $function = $this->symbolTable->getFunction($name);
+
+
+    if (!$function) {
+        throw new Exception("Función '$name' no declarada.");
+    }
+
+    $expectedParams = $function->getParams();
+    $args = $ctx->argList() ? $ctx->argList()->expression() : [];
+
+    if (count($expectedParams) !== count($args)) {
+        throw new Exception("Cantidad incorrecta de parámetros en '$name'.");
+    }
+
+    foreach ($expectedParams as $i => $param) {
+        $argType = $this->visit($args[$i]);
+        if ($argType !== $param["type"]) {
+            throw new Exception("Tipo incorrecto en parámetro '$name'.");
+        }
+    }
+
+    $returnTypes = $function->getReturnTypes();
+
+    if (count($returnTypes) > 0) {
+        return $returnTypes[0];
+    }
+
+    return null;
+}
+
 
     // ---------------- BLOCK ----------------
     public function visitBlock($ctx)
@@ -135,7 +212,7 @@ class SemanticVisitor extends GolampiBaseVisitor
     }
 
     // ---------------- IF ----------------
-   public function visitIfStmt($ctx)
+  public function visitIfStmt($ctx)
 {
     $condType = $this->visit($ctx->expression());
 
@@ -143,16 +220,25 @@ class SemanticVisitor extends GolampiBaseVisitor
         throw new Exception("Condición de if debe ser bool.");
     }
 
-    // Bloque IF
+    // IF
     $this->visit($ctx->block(0));
 
-    // Bloque ELSE (si existe)
-    if ($ctx->block(1)) {
-        $this->visit($ctx->block(1));
+    // ELSE
+    if ($ctx->ELSE()) {
+
+        if ($ctx->ifStmt()) {
+            // else if
+            $this->visit($ctx->ifStmt());
+        } 
+        else {
+            // else final
+            $this->visit($ctx->block(1));
+        }
     }
 
     return null;
 }
+
 
 
     // ---------------- FOR ----------------
@@ -279,13 +365,42 @@ class SemanticVisitor extends GolampiBaseVisitor
     }
 
     // ---------------- RETURN ----------------
-    public function visitReturnStmt($ctx)
-    {
+   public function visitReturnStmt($ctx)
+{
+    if ($this->currentFunction === null) {
+        throw new Exception("return fuera de función.");
+    }
+
+    $expectedTypes = $this->currentFunction["returnTypes"];
+
+    // Función sin retorno declarado
+    if (count($expectedTypes) === 0) {
+
         if ($ctx->expression()) {
-            $this->visit($ctx->expression());
+            throw new Exception("Función '{$this->currentFunction["name"]}' no debe retornar valor.");
         }
+
+        $this->hasReturn = true;
         return null;
     }
+
+    // Función con retorno obligatorio
+    if (!$ctx->expression()) {
+        throw new Exception("Función '{$this->currentFunction["name"]}' debe retornar tipo {$expectedTypes[0]}.");
+    }
+
+    $exprType = $this->visit($ctx->expression());
+
+    if ($exprType !== $expectedTypes[0]) {
+        throw new Exception("Tipo incorrecto en return. Se esperaba {$expectedTypes[0]} y se obtuvo $exprType.");
+    }
+
+    $this->hasReturn = true;
+
+    return null;
+}
+
+
 
     // ---------------- EXPRESSIONS ----------------
     public function visitExpression($ctx)

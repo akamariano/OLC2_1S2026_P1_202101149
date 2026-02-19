@@ -73,8 +73,9 @@ assignment
 
 // ---------------- CONTROL FLOW ----------------
 
+//  IF con else y else-if
 ifStmt
-    : IF expression block
+    : IF expression block (ELSE (ifStmt | block))?
     ;
 
 // for
@@ -168,6 +169,7 @@ type
 FUNC        : 'func';
 VAR         : 'var';
 IF          : 'if';
+ELSE        : 'else';
 FOR         : 'for';
 SWITCH      : 'switch';
 CASE        : 'case';
