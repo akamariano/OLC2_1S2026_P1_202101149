@@ -102,6 +102,16 @@ interface GolampiListener extends ParseTreeListener {
 	 */
 	public function exitVarShortDecl(Context\VarShortDeclContext $context): void;
 	/**
+	 * Enter a parse tree produced by {@see GolampiParser::constDecl()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterConstDecl(Context\ConstDeclContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::constDecl()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitConstDecl(Context\ConstDeclContext $context): void;
+	/**
 	 * Enter a parse tree produced by {@see GolampiParser::idList()}.
 	 * @param $context The parse tree.
 	 */
@@ -131,6 +141,16 @@ interface GolampiListener extends ParseTreeListener {
 	 * @param $context The parse tree.
 	 */
 	public function exitAssignment(Context\AssignmentContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::assignOp()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterAssignOp(Context\AssignOpContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::assignOp()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitAssignOp(Context\AssignOpContext $context): void;
 	/**
 	 * Enter a parse tree produced by {@see GolampiParser::ifStmt()}.
 	 * @param $context The parse tree.
@@ -271,6 +291,86 @@ interface GolampiListener extends ParseTreeListener {
 	 * @param $context The parse tree.
 	 */
 	public function exitExpression(Context\ExpressionContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::logicalOr()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterLogicalOr(Context\LogicalOrContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::logicalOr()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitLogicalOr(Context\LogicalOrContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::logicalAnd()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterLogicalAnd(Context\LogicalAndContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::logicalAnd()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitLogicalAnd(Context\LogicalAndContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::equality()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterEquality(Context\EqualityContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::equality()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitEquality(Context\EqualityContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::comparison()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterComparison(Context\ComparisonContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::comparison()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitComparison(Context\ComparisonContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::term()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterTerm(Context\TermContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::term()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitTerm(Context\TermContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::factor()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterFactor(Context\FactorContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::factor()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitFactor(Context\FactorContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::unary()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterUnary(Context\UnaryContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::unary()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitUnary(Context\UnaryContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::primary()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterPrimary(Context\PrimaryContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::primary()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitPrimary(Context\PrimaryContext $context): void;
 	/**
 	 * Enter a parse tree produced by {@see GolampiParser::type()}.
 	 * @param $context The parse tree.

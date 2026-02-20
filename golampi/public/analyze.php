@@ -53,17 +53,23 @@ try {
     ============================== */
 
     $executor = new \Interpreter\Executor();
-    $runtimeOutput = $executor->visit($tree);
+    $executor->visit($tree);
+    $runtimeOutput = $executor->getOutput();
+
 
     /* =============================
        RESPONSE
     ============================== */
+error_log("ENTRÓ A visitLogicalAnd desde analyze.php");
+
+
 
     echo json_encode([
-        "success" => true,
-        "output" => $runtimeOutput ?: "Sin salida",
-        "symbols" => $semantic->getSymbolTable()->toArray()
-    ], JSON_PRETTY_PRINT);
+    "success" => true,
+    "output" => $runtimeOutput === "" ? "Sin salida" : $runtimeOutput,
+    "symbols" => $semantic->getSymbolTable()->toArray()
+], JSON_PRETTY_PRINT);
+
 
 } catch (Throwable $e) {
 

@@ -26,22 +26,30 @@ class Executor extends \GolampiBaseVisitor {
 	public function __construct() {
 		$this->enterScope();
 	}
-
+	public function getOutput(): string
+{
+    return implode("\n", $this->output);
+}
 	/* ================= PROGRAM ================= */
 	public function visitProgram($ctx) {
-		// Guardar todas las funciones
-		foreach ($ctx->functionDecl() as $func) {
-			$name = $func->ID()->getText();
-			$this->functions[$name] = $func;
-		}
 
-		if (!isset($this->functions["main"])) {
-			throw new Exception("No existe función main.");
-		}
+    // Guardar funciones
+    foreach ($ctx->functionDecl() as $func) {
+        $name = $func->ID()->getText();
+        $this->functions[$name] = $func;
+    }
 
-		$this->callFunction("main", []);
-		return implode("\n", $this->output);
-	}
+    if (!isset($this->functions["main"])) {
+        throw new Exception("No existe función main.");
+    }
+
+    // Ejecutar main
+    $this->callFunction("main", []);
+
+    return implode("\n", $this->output);
+}
+
+
 
 	/* ================= FUNCTION CALL ================= */
 	private function callFunction($name, $args) {
@@ -80,31 +88,43 @@ class Executor extends \GolampiBaseVisitor {
 }
 
 
-	public function visitFunctionCall($ctx) {
+	public function visitFunctionCall($ctx)
+{
     $name = $ctx->qualifiedName()->getText();
 
     // fmt.Println
     if ($name === "fmt.Println") {
-        $values = [];
-        if ($ctx->argList()) {
-            foreach ($ctx->argList()->expression() as $expr) {
-                $values[] = $this->visit($expr);
-            }
-        }
-        $this->output[] = implode(" ", $values);
-        return null;
-    }
 
-    // Evaluar argumentos reales
-    $args = [];
+    $values = [];
+
     if ($ctx->argList()) {
         foreach ($ctx->argList()->expression() as $expr) {
-            $args[] = $this->visit($expr);
+            $value = $this->visit($expr);
+
+            if (is_bool($value)) {
+                $value = $value ? "true" : "false";
+            }
+
+            $values[] = $value;
         }
+    }
+
+    $this->output[] = implode(" ", $values);
+
+    return null;
+}
+
+
+    // funciones normales
+    if ($ctx->argList()) {
+        $args = array_map(fn($e) => $this->visit($e), $ctx->argList()->expression());
+    } else {
+        $args = [];
     }
 
     return $this->callFunction($name, $args);
 }
+
 
 
 	/* ================= SCOPES ================= */
@@ -130,13 +150,15 @@ class Executor extends \GolampiBaseVisitor {
 	}
 
 	/* ================= BLOCK ================= */
-	public function visitBlock($ctx) {
-		$this->enterScope();
-		foreach ($ctx->statement() as $stmt) {
-			$this->visit($stmt);
-		}
-		$this->exitScope();
-	}
+	public function visitBlock($ctx)
+{
+    foreach ($ctx->statement() as $stmt) {
+        $this->visit($stmt);
+    }
+
+    return null; // ← CRÍTICO
+}
+
 
 	/* ================= VARIABLES ================= */
 	public function visitVarShortDecl($ctx) {
@@ -239,36 +261,245 @@ class Executor extends \GolampiBaseVisitor {
 	}
 
 	/* ================= EXPRESSIONS ================= */
-	public function visitExpression($ctx) {
-		if ($ctx->INT()) return (int)$ctx->INT()->getText();
-		if ($ctx->FLOAT()) return (float)$ctx->FLOAT()->getText();
-		if ($ctx->STRING()) return trim($ctx->STRING()->getText(), '"');
-		if ($ctx->TRUE()) return true;
-		if ($ctx->FALSE()) return false;
-		if ($ctx->ID()) {
-			return $this->getVar($ctx->ID()->getText());
-		}
+public function visitExpression($ctx)
+{
+    return $this->visit($ctx->logicalOr());
+}
+public function visitLogicalOr($ctx)
+{
+    $operands = $ctx->logicalAnd();
+    $count = count($operands);
 
-		if (count($ctx->expression()) === 2) {
-			$left = $this->visit($ctx->expression(0));
-			$right = $this->visit($ctx->expression(1));
-			$op = $ctx->op->getText();
-			switch ($op) {
-				case '+': return $left + $right;
-				case '-': return $left - $right;
-				case '*': return $left * $right;
-				case '/': return $left / $right;
-				case '==': return $left == $right;
-				case '!=': return $left != $right;
-				case '<': return $left < $right;
-				case '>': return $left > $right;
-				case '<=': return $left <= $right;
-				case '>=': return $left >= $right;
-			}
-		}
+    $result = $this->visit($operands[0]);
 
-		return $this->visitChildren($ctx);
-	}
+    // Si NO hay operador ||
+    if ($count === 1) {
+        return $result;
+    }
+
+    if (!is_bool($result)) {
+        throw new Exception("Operador || requiere operandos bool");
+    }
+
+    for ($i = 1; $i < $count; $i++) {
+
+        if ($result === true) {
+            return true;
+        }
+
+        $right = $this->visit($operands[$i]);
+
+        if (!is_bool($right)) {
+            throw new Exception("Operador || requiere operandos bool");
+        }
+
+        $result = $right;
+    }
+
+    return $result;
+}
+
+
+public function visitLogicalAnd($ctx)
+{
+    $operands = $ctx->equality();
+    $count = count($operands);
+
+    $result = $this->visit($operands[0]);
+
+    // Si NO hay operador &&
+    if ($count === 1) {
+        return $result;
+    }
+
+    // Si hay && entonces validar bool
+    if (!is_bool($result)) {
+        throw new Exception("Operador && requiere operandos bool");
+    }
+
+    for ($i = 1; $i < $count; $i++) {
+
+        if ($result === false) {
+            return false; // cortocircuito
+        }
+
+        $right = $this->visit($operands[$i]);
+
+        if (!is_bool($right)) {
+            throw new Exception("Operador && requiere operandos bool");
+        }
+
+        $result = $right;
+    }
+
+    return $result;
+}
+
+
+public function visitEquality($ctx)
+{
+    $value = $this->visit($ctx->comparison(0));
+
+    for ($i = 1; $i < count($ctx->comparison()); $i++) {
+        $right = $this->visit($ctx->comparison($i));
+
+        $op = $ctx->getChild(($i * 2) - 1)->getText();
+
+        if ($op === '==') {
+            $value = $value == $right;
+        } else {
+            $value = $value != $right;
+        }
+    }
+
+    return $value;
+}
+public function visitComparison($ctx)
+{
+    $value = $this->visit($ctx->term(0));
+
+    for ($i = 1; $i < count($ctx->term()); $i++) {
+
+        $right = $this->visit($ctx->term($i));
+        $op = $ctx->getChild(($i * 2) - 1)->getText();
+
+        // Promoción int → float
+        if (is_int($value) && is_float($right)) {
+            $value = (float)$value;
+        }
+        if (is_float($value) && is_int($right)) {
+            $right = (float)$right;
+        }
+
+        switch ($op) {
+            case '>':  $value = $value > $right; break;
+            case '>=': $value = $value >= $right; break;
+            case '<':  $value = $value < $right; break;
+            case '<=': $value = $value <= $right; break;
+        }
+    }
+
+    return $value;
+}
+
+public function visitTerm($ctx)
+{
+    $value = $this->visit($ctx->factor(0));
+
+    for ($i = 1; $i < count($ctx->factor()); $i++) {
+        $right = $this->visit($ctx->factor($i));
+        $op = $ctx->getChild(($i * 2) - 1)->getText();
+
+        if ($op === '+') {
+
+            // STRING + STRING
+            if (is_string($value) && is_string($right)) {
+                $value = $value . $right;
+            }
+            // NUMERIC + NUMERIC (int + float automático)
+            elseif (is_numeric($value) && is_numeric($right)) {
+                $value = $value + $right;
+            }
+            else {
+                throw new Exception("Operación '+' inválida.");
+            }
+
+        } else { // '-'
+
+            if (is_numeric($value) && is_numeric($right)) {
+                $value = $value - $right;
+            } else {
+                throw new Exception("Operación '-' inválida.");
+            }
+        }
+    }
+
+    return $value;
+}
+public function visitFactor($ctx)
+{
+    $value = $this->visit($ctx->unary(0));
+
+    for ($i = 1; $i < count($ctx->unary()); $i++) {
+        $right = $this->visit($ctx->unary($i));
+        $op = $ctx->getChild(($i * 2) - 1)->getText();
+
+        if (!is_numeric($value) || !is_numeric($right)) {
+            throw new Exception("Operación aritmética inválida.");
+        }
+
+        switch ($op) {
+            case '*': $value = $value * $right; break;
+            case '/': $value = $value / $right; break;
+            case '%':
+						if (!is_int($value) || !is_int($right)) {
+							throw new Exception("Operador '%' requiere enteros.");
+						}
+						$value = $value % $right;
+						break;
+							}
+    }
+
+    return $value;
+}
+
+public function visitUnary($ctx)
+{
+    if ($ctx->primary()) {
+        return $this->visit($ctx->primary());
+    }
+
+    $value = $this->visit($ctx->unary());
+
+    $op = $ctx->getChild(0)->getText();
+
+    if ($op === '!') {
+    if (!is_bool($value)) {
+        throw new Exception("Operador '!' requiere bool.");
+    }
+    return !$value;
+}
+
+if ($op === '-') {
+    if (!is_numeric($value)) {
+        throw new Exception("Operador '-' requiere número.");
+    }
+    return -$value;
+}
+
+
+    return $value;
+}
+public function visitPrimary($ctx)
+{
+    if ($ctx->getToken(\GolampiParser::INT, 0))
+        return (int)$ctx->getText();
+
+    if ($ctx->getToken(\GolampiParser::FLOAT, 0))
+        return (float)$ctx->getText();
+
+    if ($ctx->getToken(\GolampiParser::STRING, 0))
+        return trim($ctx->getText(), '"');
+
+    if ($ctx->getToken(\GolampiParser::TRUE, 0))
+        return true;
+
+    if ($ctx->getToken(\GolampiParser::FALSE, 0))
+        return false;
+
+    if ($ctx->ID())
+        return $this->getVar($ctx->ID()->getText());
+
+    if ($ctx->functionCall())
+        return $this->visit($ctx->functionCall());
+
+    if ($ctx->expression())
+        return $this->visit($ctx->expression());
+
+    return null;
+}
+
+
     public function visitVarDecl($ctx)
 {
     $ids = $ctx->idList()->ID();
@@ -332,5 +563,16 @@ public function visitReturnStmt($ctx)
     throw new ReturnException($value);
 }
 
+/* ================= STATEMENT ================= */
+public function visitStatement($ctx)
+{
+    // Si es una expresión sola (como flag && esValido(10))
+    if ($ctx->expression()) {
+        $this->visit($ctx->expression());
+        return null; //no retornar el valor
+    }
+
+    return $this->visitChildren($ctx);
+}
 
 }

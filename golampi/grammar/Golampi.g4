@@ -36,6 +36,7 @@ block
 statement
     : varShortDecl
     | varDecl
+    | constDecl
     | assignment
     | ifStmt
     | forStmt
@@ -45,6 +46,7 @@ statement
     | returnStmt
     | functionCall
     | block
+    | expression
     ;
 
 // ---------------- VARIABLE DECLARATION ----------------
@@ -55,6 +57,10 @@ varDecl
 
 varShortDecl
     : idList ':=' expList ';'?
+    ;
+
+constDecl
+    : CONST ID type '=' expression ';'?
     ;
 
 idList
@@ -68,17 +74,22 @@ expList
 // ---------------- ASSIGNMENT ----------------
 
 assignment
-    : ID '=' expression ';'?
+    : ID assignOp expression ';'?
+    ;
+
+assignOp
+    : '='
+    | ADD_ASSIGN
+    | SUB_ASSIGN
+    | MUL_ASSIGN
+    | DIV_ASSIGN
     ;
 
 // ---------------- CONTROL FLOW ----------------
 
-//  IF con else y else-if
 ifStmt
     : IF expression block (ELSE (ifStmt | block))?
     ;
-
-// for
 
 forStmt
     : FOR forInit ';' expression ';' forPost block
@@ -96,8 +107,6 @@ forPost
     | ID '--'
     | ID '=' expression
     ;
-
-// ---------------- SWITCH ----------------
 
 switchStmt
     : SWITCH expression '{' caseClause* defaultClause? '}'
@@ -137,13 +146,44 @@ argList
     : expression (',' expression)*
     ;
 
-// ---------------- EXPRESSIONS ----------------
+// ---------------- EXPRESSIONS (CON PRECEDENCIA CORRECTA) ----------------
 
 expression
-    : expression op=('*'|'/') expression
-    | expression op=('+'|'-') expression
-    | expression op=('=='|'!='|'<'|'>'|'<='|'>=') expression
-    | '(' expression ')'
+    : logicalOr
+    ;
+
+logicalOr
+    : logicalAnd ( '||' logicalAnd )*
+    ;
+
+logicalAnd
+    : equality ( '&&' equality )*
+    ;
+
+equality
+    : comparison ( ( '==' | '!=' ) comparison )*
+    ;
+
+comparison
+    : term ( ( '>' | '>=' | '<' | '<=' ) term )*
+    ;
+
+term
+    : factor ( ( '+' | '-' ) factor )*
+    ;
+
+factor
+    : unary ( ( '*' | '/' | '%' ) unary )*
+    ;
+
+unary
+    : '!' unary
+    | '-' unary
+    | primary
+    ;
+
+primary
+    : '(' expression ')'
     | functionCall
     | ID
     | INT
@@ -151,6 +191,7 @@ expression
     | STRING
     | TRUE
     | FALSE
+    | NIL
     ;
 
 // ---------------- TYPES ----------------
@@ -168,6 +209,7 @@ type
 
 FUNC        : 'func';
 VAR         : 'var';
+CONST       : 'const';
 IF          : 'if';
 ELSE        : 'else';
 FOR         : 'for';
@@ -179,11 +221,21 @@ CONTINUE    : 'continue';
 RETURN      : 'return';
 TRUE        : 'true';
 FALSE       : 'false';
+NIL         : 'nil';
+
+// -------- Types --------
 
 INT_TYPE    : 'int';
 FLOAT_TYPE  : 'float';
 STRING_TYPE : 'string';
 BOOL_TYPE   : 'bool';
+
+// -------- Assignment Operators (ANTES que símbolos simples) --------
+
+ADD_ASSIGN  : '+=';
+SUB_ASSIGN  : '-=';
+MUL_ASSIGN  : '*=';
+DIV_ASSIGN  : '/=';
 
 // -------- Identifiers --------
 

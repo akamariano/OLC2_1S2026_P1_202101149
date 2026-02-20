@@ -93,6 +93,15 @@ interface GolampiVisitor extends ParseTreeVisitor
 	public function visitVarShortDecl(Context\VarShortDeclContext $context);
 
 	/**
+	 * Visit a parse tree produced by {@see GolampiParser::constDecl()}.
+	 *
+	 * @param Context\ConstDeclContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitConstDecl(Context\ConstDeclContext $context);
+
+	/**
 	 * Visit a parse tree produced by {@see GolampiParser::idList()}.
 	 *
 	 * @param Context\IdListContext $context The parse tree.
@@ -118,6 +127,15 @@ interface GolampiVisitor extends ParseTreeVisitor
 	 * @return mixed The visitor result.
 	 */
 	public function visitAssignment(Context\AssignmentContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::assignOp()}.
+	 *
+	 * @param Context\AssignOpContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitAssignOp(Context\AssignOpContext $context);
 
 	/**
 	 * Visit a parse tree produced by {@see GolampiParser::ifStmt()}.
@@ -244,6 +262,78 @@ interface GolampiVisitor extends ParseTreeVisitor
 	 * @return mixed The visitor result.
 	 */
 	public function visitExpression(Context\ExpressionContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::logicalOr()}.
+	 *
+	 * @param Context\LogicalOrContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitLogicalOr(Context\LogicalOrContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::logicalAnd()}.
+	 *
+	 * @param Context\LogicalAndContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitLogicalAnd(Context\LogicalAndContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::equality()}.
+	 *
+	 * @param Context\EqualityContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitEquality(Context\EqualityContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::comparison()}.
+	 *
+	 * @param Context\ComparisonContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitComparison(Context\ComparisonContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::term()}.
+	 *
+	 * @param Context\TermContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitTerm(Context\TermContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::factor()}.
+	 *
+	 * @param Context\FactorContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitFactor(Context\FactorContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::unary()}.
+	 *
+	 * @param Context\UnaryContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitUnary(Context\UnaryContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::primary()}.
+	 *
+	 * @param Context\PrimaryContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitPrimary(Context\PrimaryContext $context);
 
 	/**
 	 * Visit a parse tree produced by {@see GolampiParser::type()}.

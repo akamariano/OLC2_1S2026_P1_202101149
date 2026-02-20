@@ -403,47 +403,174 @@ public function visitFunctionCall($ctx)
 
 
     // ---------------- EXPRESSIONS ----------------
-    public function visitExpression($ctx)
-    {
-        if ($ctx->INT()) {
-            return "int";
+
+public function visitExpression($ctx)
+{
+    return $this->visit($ctx->logicalOr());
+}
+
+// OR  ||
+public function visitLogicalOr($ctx)
+{
+    $type = $this->visit($ctx->logicalAnd(0));
+
+    for ($i = 1; $i < count($ctx->logicalAnd()); $i++) {
+        $right = $this->visit($ctx->logicalAnd($i));
+
+        if ($type !== "bool" || $right !== "bool") {
+            throw new Exception("Operador || requiere operandos bool.");
         }
 
-        if ($ctx->FLOAT()) {
-            return "float";
-        }
-
-        if ($ctx->STRING()) {
-            return "string";
-        }
-
-        if ($ctx->TRUE() || $ctx->FALSE()) {
-            return "bool";
-        }
-
-        if ($ctx->ID()) {
-            $symbol = $this->symbolTable->resolveVariable($ctx->ID()->getText());
-            if (!$symbol) {
-                throw new Exception("Variable no declarada.");
-            }
-            return $symbol->getType();
-        }
-
-        if (count($ctx->expression()) === 2) {
-            $left = $this->visit($ctx->expression(0));
-            $right = $this->visit($ctx->expression(1));
-            $op = $ctx->op->getText();
-
-            if ($op === "+" || $op === "-" || $op === "*" || $op === "/") {
-                if ($left === $right && ($left === "int" || $left === "float")) {
-                    return $left;
-                }
-                throw new Exception("Operación aritmética inválida.");
-            }
-
-            return "bool";
-        }
-
-        return $this->visitChildren($ctx);
+        $type = "bool";
     }
+
+    return $type;
+}
+
+// AND  &&
+public function visitLogicalAnd($ctx)
+{
+    $type = $this->visit($ctx->equality(0));
+
+    for ($i = 1; $i < count($ctx->equality()); $i++) {
+        $right = $this->visit($ctx->equality($i));
+
+        if ($type !== "bool" || $right !== "bool") {
+            throw new Exception("Operador && requiere operandos bool.");
+        }
+
+        $type = "bool";
+    }
+
+    return $type;
+}
+
+// ==  !=
+public function visitEquality($ctx)
+{
+    $type = $this->visit($ctx->comparison(0));
+
+    for ($i = 1; $i < count($ctx->comparison()); $i++) {
+        $right = $this->visit($ctx->comparison($i));
+
+        if ($type !== $right) {
+            throw new Exception("Comparación inválida entre tipos diferentes.");
+        }
+
+        $type = "bool";
+    }
+
+    return $type;
+}
+
+// >  >=  <  <=
+public function visitComparison($ctx)
+{
+    $type = $this->visit($ctx->term(0));
+
+    for ($i = 1; $i < count($ctx->term()); $i++) {
+        $right = $this->visit($ctx->term($i));
+
+        if ($type !== $right || !in_array($type, ["int", "float"])) {
+            throw new Exception("Operador relacional requiere int o float.");
+        }
+
+        $type = "bool";
+    }
+
+    return $type;
+}
+
+// +  -
+public function visitTerm($ctx)
+{
+    $type = $this->visit($ctx->factor(0));
+
+    for ($i = 1; $i < count($ctx->factor()); $i++) {
+        $right = $this->visit($ctx->factor($i));
+
+        if ($type !== $right || !in_array($type, ["int", "float"])) {
+            throw new Exception("Operador + o - requiere int o float.");
+        }
+
+        $type = $type;
+    }
+
+    return $type;
+}
+
+// *  /  %
+public function visitFactor($ctx)
+{
+    $type = $this->visit($ctx->unary(0));
+
+    for ($i = 1; $i < count($ctx->unary()); $i++) {
+        $right = $this->visit($ctx->unary($i));
+
+        if ($type !== $right || !in_array($type, ["int", "float"])) {
+            throw new Exception("Operador *, / o % requiere int o float.");
+        }
+
+        $type = $type;
+    }
+
+    return $type;
+}
+
+// !  -
+public function visitUnary($ctx)
+{
+    if ($ctx->primary()) {
+        return $this->visit($ctx->primary());
+    }
+
+    $type = $this->visit($ctx->unary());
+
+    if ($ctx->getChild(0)->getText() === "!") {
+        if ($type !== "bool") {
+            throw new Exception("Operador ! requiere bool.");
+        }
+        return "bool";
+    }
+
+    if ($ctx->getChild(0)->getText() === "-") {
+        if (!in_array($type, ["int", "float"])) {
+            throw new Exception("Operador - requiere int o float.");
+        }
+        return $type;
+    }
+
+    return $type;
+}
+
+// Literales, ID y llamadas
+public function visitPrimary($ctx)
+{
+    if ($ctx->getToken(GolampiParser::INT, 0)) return "int";
+    if ($ctx->getToken(GolampiParser::FLOAT, 0)) return "float";
+    if ($ctx->getToken(GolampiParser::STRING, 0)) return "string";
+    if ($ctx->getToken(GolampiParser::TRUE, 0) || 
+        $ctx->getToken(GolampiParser::FALSE, 0)) return "bool";
+    if ($ctx->getToken(GolampiParser::NIL, 0)) return "nil";
+
+    if ($ctx->ID()) {
+        $symbol = $this->symbolTable->resolveVariable($ctx->ID()->getText());
+        if (!$symbol) {
+            throw new Exception("Variable '{$ctx->ID()->getText()}' no declarada.");
+        }
+        return $symbol->getType();
+    }
+
+    if ($ctx->functionCall()) {
+        return $this->visit($ctx->functionCall());
+    }
+
+    if ($ctx->expression()) {
+        return $this->visit($ctx->expression());
+    }
+
+    return null;
+}
+
+
 }
