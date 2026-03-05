@@ -62,6 +62,16 @@ interface GolampiListener extends ParseTreeListener {
 	 */
 	public function exitReturnType(Context\ReturnTypeContext $context): void;
 	/**
+	 * Enter a parse tree produced by {@see GolampiParser::multiReturnType()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterMultiReturnType(Context\MultiReturnTypeContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::multiReturnType()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitMultiReturnType(Context\MultiReturnTypeContext $context): void;
+	/**
 	 * Enter a parse tree produced by {@see GolampiParser::block()}.
 	 * @param $context The parse tree.
 	 */
@@ -131,6 +141,76 @@ interface GolampiListener extends ParseTreeListener {
 	 * @param $context The parse tree.
 	 */
 	public function exitExpList(Context\ExpListContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::arrayType()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterArrayType(Context\ArrayTypeContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::arrayType()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitArrayType(Context\ArrayTypeContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::arrayLiteral()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterArrayLiteral(Context\ArrayLiteralContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::arrayLiteral()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitArrayLiteral(Context\ArrayLiteralContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::arrayElements()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterArrayElements(Context\ArrayElementsContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::arrayElements()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitArrayElements(Context\ArrayElementsContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::arrayRowElements()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterArrayRowElements(Context\ArrayRowElementsContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::arrayRowElements()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitArrayRowElements(Context\ArrayRowElementsContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::arrayAccess()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterArrayAccess(Context\ArrayAccessContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::arrayAccess()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitArrayAccess(Context\ArrayAccessContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::ptrAssign()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterPtrAssign(Context\PtrAssignContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::ptrAssign()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitPtrAssign(Context\PtrAssignContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::arrayAssign()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterArrayAssign(Context\ArrayAssignContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::arrayAssign()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitArrayAssign(Context\ArrayAssignContext $context): void;
 	/**
 	 * Enter a parse tree produced by {@see GolampiParser::assignment()}.
 	 * @param $context The parse tree.
@@ -281,6 +361,16 @@ interface GolampiListener extends ParseTreeListener {
 	 * @param $context The parse tree.
 	 */
 	public function exitArgList(Context\ArgListContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::argItem()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterArgItem(Context\ArgItemContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::argItem()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitArgItem(Context\ArgItemContext $context): void;
 	/**
 	 * Enter a parse tree produced by {@see GolampiParser::expression()}.
 	 * @param $context The parse tree.

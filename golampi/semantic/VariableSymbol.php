@@ -10,14 +10,18 @@ class VariableSymbol {
         $this->type = $type;
     }
 
+    public function getName(): string {
+        return $this->name;
+    }
+
+    public function getType(): string {
+        return $this->type;
+    }
+
     public function toArray(): array {
         return [
             "name" => $this->name,
             "type" => $this->type
         ];
     }
-    public function getType(): string {
-    return $this->type;
-}
-
 }

@@ -86,6 +86,19 @@ class GolampiBaseListener implements GolampiListener
 	 *
 	 * The default implementation does nothing.
 	 */
+	public function enterMultiReturnType(Context\MultiReturnTypeContext $context): void {}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function exitMultiReturnType(Context\MultiReturnTypeContext $context): void {}
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
 	public function enterBlock(Context\BlockContext $context): void {}
 
 	/**
@@ -172,6 +185,97 @@ class GolampiBaseListener implements GolampiListener
 	 * The default implementation does nothing.
 	 */
 	public function exitExpList(Context\ExpListContext $context): void {}
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function enterArrayType(Context\ArrayTypeContext $context): void {}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function exitArrayType(Context\ArrayTypeContext $context): void {}
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function enterArrayLiteral(Context\ArrayLiteralContext $context): void {}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function exitArrayLiteral(Context\ArrayLiteralContext $context): void {}
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function enterArrayElements(Context\ArrayElementsContext $context): void {}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function exitArrayElements(Context\ArrayElementsContext $context): void {}
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function enterArrayRowElements(Context\ArrayRowElementsContext $context): void {}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function exitArrayRowElements(Context\ArrayRowElementsContext $context): void {}
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function enterArrayAccess(Context\ArrayAccessContext $context): void {}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function exitArrayAccess(Context\ArrayAccessContext $context): void {}
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function enterPtrAssign(Context\PtrAssignContext $context): void {}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function exitPtrAssign(Context\PtrAssignContext $context): void {}
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function enterArrayAssign(Context\ArrayAssignContext $context): void {}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function exitArrayAssign(Context\ArrayAssignContext $context): void {}
 	/**
 	 * {@inheritdoc}
 	 *
@@ -367,6 +471,19 @@ class GolampiBaseListener implements GolampiListener
 	 * The default implementation does nothing.
 	 */
 	public function exitArgList(Context\ArgListContext $context): void {}
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function enterArgItem(Context\ArgItemContext $context): void {}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function exitArgItem(Context\ArgItemContext $context): void {}
 	/**
 	 * {@inheritdoc}
 	 *

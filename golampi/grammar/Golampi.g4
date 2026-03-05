@@ -17,12 +17,25 @@ paramList
     ;
 
 param
-    : ID type
+    : ID type               // a int
+    | ID STAR type          // a *int
+    | ID STAR arrayType     // a *[5]int
+    | ID arrayType          // a [5]int
     ;
 
 returnType
     : type
-    | '(' type (',' type)* ')'
+    | arrayType
+    | STAR type
+    | STAR arrayType
+    | '(' multiReturnType (',' multiReturnType)* ')'
+    ;
+
+multiReturnType
+    : type
+    | arrayType
+    | STAR type
+    | STAR arrayType
     ;
 
 // ---------------- BLOCK ----------------
@@ -34,9 +47,11 @@ block
 // ---------------- STATEMENTS ----------------
 
 statement
-    : varShortDecl
-    | varDecl
+    : varDecl
+    | varShortDecl
     | constDecl
+    | ptrAssign
+    | arrayAssign
     | assignment
     | ifStmt
     | forStmt
@@ -44,19 +59,23 @@ statement
     | breakStmt
     | continueStmt
     | returnStmt
-    | functionCall
-    | block
-    | expression
+    | functionCall ';'?
+    | expression ';'?
     ;
 
 // ---------------- VARIABLE DECLARATION ----------------
 
 varDecl
-    : VAR idList type ('=' expList)? ';'?
+    : VAR ID type ('=' expression)? ';'?
+    | VAR ID arrayType ('=' arrayLiteral)? ';'?
+    | VAR ID arrayType '=' expression ';'?
+    | VAR ID STAR type ';'?
+    | VAR ID STAR arrayType ';'?
     ;
 
 varShortDecl
     : idList ':=' expList ';'?
+    | ID ':=' arrayLiteral ';'?
     ;
 
 constDecl
@@ -69,6 +88,38 @@ idList
 
 expList
     : expression (',' expression)*
+    ;
+
+// ---------------- ARRAYS ----------------
+
+arrayType
+    : '[' INT ']' type
+    | '[' INT ']' arrayType
+    ;
+
+arrayLiteral
+    : '[' INT ']' type '{' arrayElements? '}'
+    | '[' INT ']' arrayType '{' arrayRowElements? '}'
+    ;
+
+arrayElements
+    : expression (',' expression)*
+    ;
+
+arrayRowElements
+    : '{' arrayElements? '}' (',' '{' arrayElements? '}')*
+    ;
+
+arrayAccess
+    : ID ('[' expression ']')+
+    ;
+
+ptrAssign
+    : STAR ID assignOp expression ';'?
+    ;
+
+arrayAssign
+    : ID ('[' expression ']')+ assignOp expression ';'?
     ;
 
 // ---------------- ASSIGNMENT ----------------
@@ -120,16 +171,11 @@ defaultClause
     : DEFAULT ':' statement*
     ;
 
-breakStmt
-    : BREAK ';'?
-    ;
-
-continueStmt
-    : CONTINUE ';'?
-    ;
+breakStmt  : BREAK ';'?    ;
+continueStmt : CONTINUE ';'? ;
 
 returnStmt
-    : RETURN expression? ';'?
+    : RETURN expList? ';'?
     ;
 
 // ---------------- FUNCTION CALL ----------------
@@ -143,52 +189,62 @@ qualifiedName
     ;
 
 argList
-    : expression (',' expression)*
+    : argItem (',' argItem)*
     ;
 
-// ---------------- EXPRESSIONS (CON PRECEDENCIA CORRECTA) ----------------
+argItem
+    : REF ID
+    | expression
+    ;
+
+// ---------------- EXPRESSIONS ----------------
 
 expression
     : logicalOr
     ;
 
 logicalOr
-    : logicalAnd ( '||' logicalAnd )*
+    : logicalAnd ( OR logicalAnd )*
     ;
 
 logicalAnd
-    : equality ( '&&' equality )*
+    : equality ( AND equality )*
     ;
 
 equality
-    : comparison ( ( '==' | '!=' ) comparison )*
+    : comparison ( ( EQ | NEQ ) comparison )*
     ;
 
 comparison
-    : term ( ( '>' | '>=' | '<' | '<=' ) term )*
+    : term ( ( GTE | LTE | GT | LT ) term )*
     ;
 
 term
-    : factor ( ( '+' | '-' ) factor )*
+    : factor ( ( PLUS | MINUS ) factor )*
     ;
 
+// STAR aquí es multiplicación
 factor
-    : unary ( ( '*' | '/' | '%' ) unary )*
+    : unary ( ( STAR | SLASH | MOD ) unary )*
     ;
 
+// STAR aquí es desreferenciación — ANTLR lo distingue por contexto del parser
 unary
-    : '!' unary
-    | '-' unary
+    : BANG unary
+    | MINUS unary
+    | STAR unary
     | primary
     ;
 
 primary
     : '(' expression ')'
     | functionCall
+    | arrayAccess
     | ID
     | INT
     | FLOAT
     | STRING
+    | RUNE
     | TRUE
     | FALSE
     | NIL
@@ -201,12 +257,12 @@ type
     | FLOAT_TYPE
     | STRING_TYPE
     | BOOL_TYPE
+    | RUNE_TYPE
     ;
 
 // ---------------- LEXER ----------------
 
-// -------- Keywords --------
-
+// Keywords
 FUNC        : 'func';
 VAR         : 'var';
 CONST       : 'const';
@@ -223,45 +279,52 @@ TRUE        : 'true';
 FALSE       : 'false';
 NIL         : 'nil';
 
-// -------- Types --------
-
+// Types (antes de ID para que no sean parseados como identificadores)
 INT_TYPE    : 'int';
 FLOAT_TYPE  : 'float';
 STRING_TYPE : 'string';
 BOOL_TYPE   : 'bool';
+RUNE_TYPE   : 'rune';
 
-// -------- Assignment Operators (ANTES que símbolos simples) --------
-
+// Operadores compuestos ANTES que simples
 ADD_ASSIGN  : '+=';
 SUB_ASSIGN  : '-=';
 MUL_ASSIGN  : '*=';
 DIV_ASSIGN  : '/=';
 
-// -------- Identifiers --------
+// Operadores de dos caracteres ANTES que de uno
+OR          : '||';
+AND         : '&&';
+EQ          : '==';
+NEQ         : '!=';
+GTE         : '>=';
+LTE         : '<=';
 
+// Operadores de un carácter
+GT          : '>';
+LT          : '<';
+PLUS        : '+';
+MINUS       : '-';
+STAR        : '*';
+SLASH       : '/';
+MOD         : '%';
+BANG        : '!';
+REF         : '&';
+
+// Identifiers
 ID : [\p{L}_] [\p{L}\p{N}_]* ;
 
-// -------- Numbers --------
-
+// Numbers — FLOAT antes de INT
 FLOAT : [0-9]+ '.' [0-9]+ ;
 INT   : [0-9]+ ;
 
-// -------- String --------
+// Strings y Runes
+STRING : '"' ( '\\' . | ~["\\] )* '"' ;
+RUNE   : '\'' ( '\\' . | ~['\\] ) '\'' ;
 
-STRING
-    : '"' ( '\\' . | ~["\\] )* '"'
-    ;
+// Comments
+LINE_COMMENT  : '//' ~[\r\n]* -> skip ;
+BLOCK_COMMENT : '/*' .*? '*/' -> skip ;
 
-// -------- Comments --------
-
-LINE_COMMENT
-    : '//' ~[\r\n]* -> skip
-    ;
-
-BLOCK_COMMENT
-    : '/*' .*? '*/' -> skip
-    ;
-
-// -------- Whitespace --------
-
+// Whitespace
 WS : [ \t\r\n]+ -> skip ;

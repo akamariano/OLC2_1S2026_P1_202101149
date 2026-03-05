@@ -57,6 +57,15 @@ interface GolampiVisitor extends ParseTreeVisitor
 	public function visitReturnType(Context\ReturnTypeContext $context);
 
 	/**
+	 * Visit a parse tree produced by {@see GolampiParser::multiReturnType()}.
+	 *
+	 * @param Context\MultiReturnTypeContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitMultiReturnType(Context\MultiReturnTypeContext $context);
+
+	/**
 	 * Visit a parse tree produced by {@see GolampiParser::block()}.
 	 *
 	 * @param Context\BlockContext $context The parse tree.
@@ -118,6 +127,69 @@ interface GolampiVisitor extends ParseTreeVisitor
 	 * @return mixed The visitor result.
 	 */
 	public function visitExpList(Context\ExpListContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::arrayType()}.
+	 *
+	 * @param Context\ArrayTypeContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitArrayType(Context\ArrayTypeContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::arrayLiteral()}.
+	 *
+	 * @param Context\ArrayLiteralContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitArrayLiteral(Context\ArrayLiteralContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::arrayElements()}.
+	 *
+	 * @param Context\ArrayElementsContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitArrayElements(Context\ArrayElementsContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::arrayRowElements()}.
+	 *
+	 * @param Context\ArrayRowElementsContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitArrayRowElements(Context\ArrayRowElementsContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::arrayAccess()}.
+	 *
+	 * @param Context\ArrayAccessContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitArrayAccess(Context\ArrayAccessContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::ptrAssign()}.
+	 *
+	 * @param Context\PtrAssignContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitPtrAssign(Context\PtrAssignContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::arrayAssign()}.
+	 *
+	 * @param Context\ArrayAssignContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitArrayAssign(Context\ArrayAssignContext $context);
 
 	/**
 	 * Visit a parse tree produced by {@see GolampiParser::assignment()}.
@@ -253,6 +325,15 @@ interface GolampiVisitor extends ParseTreeVisitor
 	 * @return mixed The visitor result.
 	 */
 	public function visitArgList(Context\ArgListContext $context);
+
+	/**
+	 * Visit a parse tree produced by {@see GolampiParser::argItem()}.
+	 *
+	 * @param Context\ArgItemContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitArgItem(Context\ArgItemContext $context);
 
 	/**
 	 * Visit a parse tree produced by {@see GolampiParser::expression()}.

@@ -74,6 +74,17 @@ class GolampiBaseVisitor extends AbstractParseTreeVisitor implements GolampiVisi
 	 * The default implementation returns the result of calling
 	 * {@see self::visitChildren()} on `context`.
 	 */
+	public function visitMultiReturnType(Context\MultiReturnTypeContext $context)
+	{
+	    return $this->visitChildren($context);
+	}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation returns the result of calling
+	 * {@see self::visitChildren()} on `context`.
+	 */
 	public function visitBlock(Context\BlockContext $context)
 	{
 	    return $this->visitChildren($context);
@@ -141,6 +152,83 @@ class GolampiBaseVisitor extends AbstractParseTreeVisitor implements GolampiVisi
 	 * {@see self::visitChildren()} on `context`.
 	 */
 	public function visitExpList(Context\ExpListContext $context)
+	{
+	    return $this->visitChildren($context);
+	}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation returns the result of calling
+	 * {@see self::visitChildren()} on `context`.
+	 */
+	public function visitArrayType(Context\ArrayTypeContext $context)
+	{
+	    return $this->visitChildren($context);
+	}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation returns the result of calling
+	 * {@see self::visitChildren()} on `context`.
+	 */
+	public function visitArrayLiteral(Context\ArrayLiteralContext $context)
+	{
+	    return $this->visitChildren($context);
+	}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation returns the result of calling
+	 * {@see self::visitChildren()} on `context`.
+	 */
+	public function visitArrayElements(Context\ArrayElementsContext $context)
+	{
+	    return $this->visitChildren($context);
+	}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation returns the result of calling
+	 * {@see self::visitChildren()} on `context`.
+	 */
+	public function visitArrayRowElements(Context\ArrayRowElementsContext $context)
+	{
+	    return $this->visitChildren($context);
+	}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation returns the result of calling
+	 * {@see self::visitChildren()} on `context`.
+	 */
+	public function visitArrayAccess(Context\ArrayAccessContext $context)
+	{
+	    return $this->visitChildren($context);
+	}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation returns the result of calling
+	 * {@see self::visitChildren()} on `context`.
+	 */
+	public function visitPtrAssign(Context\PtrAssignContext $context)
+	{
+	    return $this->visitChildren($context);
+	}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation returns the result of calling
+	 * {@see self::visitChildren()} on `context`.
+	 */
+	public function visitArrayAssign(Context\ArrayAssignContext $context)
 	{
 	    return $this->visitChildren($context);
 	}
@@ -306,6 +394,17 @@ class GolampiBaseVisitor extends AbstractParseTreeVisitor implements GolampiVisi
 	 * {@see self::visitChildren()} on `context`.
 	 */
 	public function visitArgList(Context\ArgListContext $context)
+	{
+	    return $this->visitChildren($context);
+	}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation returns the result of calling
+	 * {@see self::visitChildren()} on `context`.
+	 */
+	public function visitArgItem(Context\ArgItemContext $context)
 	{
 	    return $this->visitChildren($context);
 	}
