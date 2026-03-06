@@ -291,6 +291,15 @@ interface GolampiVisitor extends ParseTreeVisitor
 	public function visitContinueStmt(Context\ContinueStmtContext $context);
 
 	/**
+	 * Visit a parse tree produced by {@see GolampiParser::incDecStmt()}.
+	 *
+	 * @param Context\IncDecStmtContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitIncDecStmt(Context\IncDecStmtContext $context);
+
+	/**
 	 * Visit a parse tree produced by {@see GolampiParser::returnStmt()}.
 	 *
 	 * @param Context\ReturnStmtContext $context The parse tree.

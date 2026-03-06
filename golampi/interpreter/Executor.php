@@ -16,7 +16,7 @@ class ReturnException extends Exception {
 
 class Executor extends \GolampiBaseVisitor {
 
-    private $scopes    = [];
+    public  $scopes    = [];
     private $functions = [];
     private $output    = [];
 
@@ -36,8 +36,17 @@ class Executor extends \GolampiBaseVisitor {
     // PROGRAM
     // ================================================================
     public function visitProgram($ctx) {
+        // 1. Registrar funciones (hoisting)
         foreach ($ctx->functionDecl() as $func) {
             $this->functions[$func->ID()->getText()] = $func;
+        }
+        // 2. Evaluar var/const globales en orden
+        foreach ($ctx->children as $child) {
+            $class = get_class($child);
+            if (str_contains($class, 'VarDeclContext') ||
+                str_contains($class, 'ConstDeclContext')) {
+                $this->visit($child);
+            }
         }
         if (!isset($this->functions["main"])) {
             throw new Exception("No existe función 'main'.");
@@ -185,8 +194,11 @@ class Executor extends \GolampiBaseVisitor {
     // ================================================================
     public function visitBlock($ctx) {
         $this->enterScope();
-        $this->visitBlockStatements($ctx);
-        $this->exitScope();
+        try {
+            $this->visitBlockStatements($ctx);
+        } finally {
+            $this->exitScope();
+        }
         return null;
     }
 
@@ -198,8 +210,11 @@ class Executor extends \GolampiBaseVisitor {
 
     private function visitBlockInLoop($blockCtx) {
         $this->enterScope();
-        $this->visitBlockStatements($blockCtx);
-        $this->exitScope();
+        try {
+            $this->visitBlockStatements($blockCtx);
+        } finally {
+            $this->exitScope();
+        }
     }
 
     // ================================================================
@@ -368,6 +383,11 @@ class Executor extends \GolampiBaseVisitor {
         $name = $ctx->ID()->getText();
         $arr  = $this->getVar($name);
 
+        // Si es una referencia (__ref__), obtener el arreglo real del caller
+        if (is_array($arr) && isset($arr['__ref__'])) {
+            $arr = $arr['__executor__']->getVar($arr['__ref__']);
+        }
+
         foreach ($ctx->expression() as $idxExpr) {
             $idx = $this->visit($idxExpr);
             if (!isset($arr[$idx])) {
@@ -422,25 +442,40 @@ class Executor extends \GolampiBaseVisitor {
         $value    = $this->visit($allExprs[count($allExprs) - 1]);
         $op       = $ctx->assignOp()->getText();
 
-        // Necesitamos modificar el arreglo en el scope correcto.
-        // Obtenemos referencia al scope donde vive el arreglo.
-        $scopeIdx = -1;
-        for ($i = count($this->scopes) - 1; $i >= 0; $i--) {
-            if (array_key_exists($name, $this->scopes[$i])) {
-                $scopeIdx = $i;
-                break;
+        // Si la variable es un __ref__ (puntero a arreglo), redirigir al executor/scope del caller
+        $rawVal = $this->getVar($name);
+        if (is_array($rawVal) && isset($rawVal['__ref__'])) {
+            $targetExecutor = $rawVal['__executor__'];
+            $targetName     = $rawVal['__ref__'];
+            // Buscar el scope donde vive el arreglo en el executor del caller
+            $scopeIdx = -1;
+            for ($i = count($targetExecutor->scopes) - 1; $i >= 0; $i--) {
+                if (array_key_exists($targetName, $targetExecutor->scopes[$i])) {
+                    $scopeIdx = $i;
+                    break;
+                }
             }
+            if ($scopeIdx === -1) throw new Exception("Variable '$targetName' no definida.");
+            $ref = &$targetExecutor->scopes[$scopeIdx][$targetName];
+        } else {
+            // Variable local: buscar en scopes propios
+            $scopeIdx = -1;
+            for ($i = count($this->scopes) - 1; $i >= 0; $i--) {
+                if (array_key_exists($name, $this->scopes[$i])) {
+                    $scopeIdx = $i;
+                    break;
+                }
+            }
+            if ($scopeIdx === -1) throw new Exception("Variable '$name' no definida.");
+            $ref = &$this->scopes[$scopeIdx][$name];
         }
-        if ($scopeIdx === -1) throw new Exception("Variable '$name' no definida.");
 
-        // Navegar hasta el último nivel por referencia
-        $ref = &$this->scopes[$scopeIdx][$name];
         $indices = [];
         foreach ($idxExprs as $idxExpr) {
             $indices[] = $this->visit($idxExpr);
         }
 
-        // Llegar al penúltimo nivel
+        // Navegar hasta el penúltimo nivel
         for ($k = 0; $k < count($indices) - 1; $k++) {
             $ref = &$ref[$indices[$k]];
         }
@@ -560,22 +595,26 @@ class Executor extends \GolampiBaseVisitor {
         foreach ($ctx->caseClause() as $caseClause) {
             foreach ($caseClause->expList()->expression() as $expr) {
                 if ($switchValue == $this->visit($expr)) {
+                    $this->enterScope();
                     try {
-                        $this->enterScope();
                         foreach ($caseClause->statement() as $stmt) $this->visit($stmt);
+                    } catch (BreakException $e) {
+                    } finally {
                         $this->exitScope();
-                    } catch (BreakException $e) { $this->exitScope(); }
+                    }
                     return null;
                 }
             }
         }
 
         if ($ctx->defaultClause()) {
+            $this->enterScope();
             try {
-                $this->enterScope();
                 foreach ($ctx->defaultClause()->statement() as $stmt) $this->visit($stmt);
+            } catch (BreakException $e) {
+            } finally {
                 $this->exitScope();
-            } catch (BreakException $e) { $this->exitScope(); }
+            }
         }
 
         return null;
@@ -586,6 +625,13 @@ class Executor extends \GolampiBaseVisitor {
     // ================================================================
     public function visitBreakStmt($ctx)    { throw new BreakException(); }
     public function visitContinueStmt($ctx) { throw new ContinueException(); }
+
+    public function visitIncDecStmt($ctx) {
+        $name = $ctx->ID()->getText();
+        $op   = $ctx->getChild(1)->getText();
+        $cur  = $this->getVar($name);
+        $this->updateVar($name, $op === '++' ? $cur + 1 : $cur - 1);
+    }
 
     public function visitReturnStmt($ctx) {
         if (!$ctx->expList()) {
@@ -692,7 +738,10 @@ class Executor extends \GolampiBaseVisitor {
                 case '*': $value = $value * $right; break;
                 case '/':
                     if ($right == 0) throw new Exception("División por cero.");
-                    $value = $value / $right;
+                    // División entera si ambos operandos son enteros
+                    $value = (is_int($value) && is_int($right))
+                        ? intdiv($value, $right)
+                        : $value / $right;
                     break;
                 case '%':
                     if ($right == 0) throw new Exception("Módulo por cero.");

@@ -3,7 +3,7 @@ grammar Golampi;
 // ---------------- PROGRAM ----------------
 
 program
-    : functionDecl+ EOF
+    : (functionDecl | varDecl | constDecl)+ EOF
     ;
 
 // ---------------- FUNCTIONS ----------------
@@ -58,6 +58,7 @@ statement
     | switchStmt
     | breakStmt
     | continueStmt
+    | incDecStmt
     | returnStmt
     | functionCall ';'?
     | expression ';'?
@@ -173,6 +174,9 @@ defaultClause
 
 breakStmt  : BREAK ';'?    ;
 continueStmt : CONTINUE ';'? ;
+incDecStmt : ID '++' ';'?
+           | ID '--' ';'?
+           ;
 
 returnStmt
     : RETURN expList? ';'?

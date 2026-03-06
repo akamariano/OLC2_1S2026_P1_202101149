@@ -322,6 +322,16 @@ interface GolampiListener extends ParseTreeListener {
 	 */
 	public function exitContinueStmt(Context\ContinueStmtContext $context): void;
 	/**
+	 * Enter a parse tree produced by {@see GolampiParser::incDecStmt()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterIncDecStmt(Context\IncDecStmtContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::incDecStmt()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitIncDecStmt(Context\IncDecStmtContext $context): void;
+	/**
 	 * Enter a parse tree produced by {@see GolampiParser::returnStmt()}.
 	 * @param $context The parse tree.
 	 */

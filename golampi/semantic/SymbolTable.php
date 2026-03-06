@@ -1,22 +1,65 @@
 <?php
+
 class SymbolTable {
 
-    private array $functions = [];
-    private array $scopes = [];
-    private array $scopeHistory = [];
+    // Pila de scopes: cada scope es ['name' => string, 'vars' => [name => VariableSymbol]]
+    private array $scopeStack = [];
 
-    public function __construct() {
-        $this->enterScope(); // scope global
+    // Tabla plana de todas las variables para el reporte final
+    private array $allSymbols = [];
+
+    // Funciones registradas
+    private array $functions  = [];
+
+    // ================================================================
+    // SCOPE MANAGEMENT
+    // ================================================================
+
+    public function enterScope(string $name = ''): void {
+        $this->scopeStack[] = ['name' => $name, 'vars' => []];
     }
 
-    /* ========================
-       FUNCIONES
-       ======================== */
+    public function exitScope(): void {
+        array_pop($this->scopeStack);
+    }
 
-    public function defineFunction(string $name, $symbol) {
-        if (isset($this->functions[$name])) {
-            throw new Exception("Error Semántico: La función '$name' ya está definida.");
+    public function currentScopeName(): string {
+        if (empty($this->scopeStack)) return 'global';
+        return end($this->scopeStack)['name'] ?: 'global';
+    }
+
+    // ================================================================
+    // VARIABLES
+    // ================================================================
+
+    public function defineVariable(string $name, VariableSymbol $symbol): void {
+        $idx = count($this->scopeStack) - 1;
+        $this->scopeStack[$idx]['vars'][$name] = $symbol;
+
+        // Agregar a tabla plana (permite duplicados en distintos scopes)
+        $this->allSymbols[] = $symbol;
+    }
+
+    public function resolveVariable(string $name): ?VariableSymbol {
+        for ($i = count($this->scopeStack) - 1; $i >= 0; $i--) {
+            if (isset($this->scopeStack[$i]['vars'][$name])) {
+                return $this->scopeStack[$i]['vars'][$name];
+            }
         }
+        return null;
+    }
+
+    public function resolveInCurrentScope(string $name): ?VariableSymbol {
+        if (empty($this->scopeStack)) return null;
+        $top = end($this->scopeStack);
+        return $top['vars'][$name] ?? null;
+    }
+
+    // ================================================================
+    // FUNCTIONS
+    // ================================================================
+
+    public function defineFunction(string $name, $symbol): void {
         $this->functions[$name] = $symbol;
     }
 
@@ -24,95 +67,22 @@ class SymbolTable {
         return $this->functions[$name] ?? null;
     }
 
-    public function getAllFunctions() {
-        return $this->functions;
-    }
+    // ================================================================
+    // SERIALIZATION
+    // ================================================================
 
-    /* ========================
-       VARIABLES
-       ======================== */
-
-    public function enterScope() {
-        array_push($this->scopes, []);
-    }
-
-    public function exitScope() {
-
-    if (count($this->scopes) <= 1) {
-        return; // nunca eliminar el scope global
-    }
-
-    $scope = array_pop($this->scopes);
-    $this->scopeHistory[] = $scope;
-}
-
-
-    public function defineVariable(string $name, $symbol) {
-        $currentScope = &$this->scopes[count($this->scopes) - 1];
-
-        if (isset($currentScope[$name])) {
-            throw new Exception("Error Semántico: Variable '$name' ya declarada en este ámbito.");
+    /**
+     * Devuelve la tabla de símbolos estructurada para los reportes.
+     */
+    public function toArray(): array {
+        $vars = array_map(fn($s) => $s->toArray(), $this->allSymbols);
+        $funcs = [];
+        foreach ($this->functions as $name => $f) {
+            $funcs[$name] = $f->toArray();
         }
-
-        $currentScope[$name] = $symbol;
+        return [
+            'functions' => $funcs,
+            'variables' => $vars,
+        ];
     }
-
-    public function resolveVariable(string $name) {
-        for ($i = count($this->scopes) - 1; $i >= 0; $i--) {
-            if (isset($this->scopes[$i][$name])) {
-                return $this->scopes[$i][$name];
-            }
-        }
-        return null;
-    }
-
-    /* ========================
-       SERIALIZACIÓN PARA JSON
-       ======================== */
-
-   public function toArray(): array {
-
-    $functionsArray = [];
-
-    foreach ($this->functions as $name => $functionSymbol) {
-        $functionsArray[$name] = method_exists($functionSymbol, 'toArray')
-            ? $functionSymbol->toArray()
-            : $name;
-    }
-
-    $scopesArray = [];
-
-    $allScopes = array_merge($this->scopes, $this->scopeHistory);
-
-    foreach ($allScopes as $index => $scope) {
-
-        $scopeData = [];
-
-        foreach ($scope as $varName => $varSymbol) {
-            $scopeData[$varName] = method_exists($varSymbol, 'toArray')
-                ? $varSymbol->toArray()
-                : $varName;
-        }
-
-        $scopesArray["scope_" . $index] = $scopeData;
-    }
-
-    return [
-        "functions" => $functionsArray,
-        "scopes" => $scopesArray
-    ];
-}
-
-public function resolveInCurrentScope(string $name) {
-
-    if (empty($this->scopes)) {
-        return null;
-    }
-
-    $currentScope = $this->scopes[count($this->scopes) - 1];
-
-    return $currentScope[$name] ?? null;
-}
-
-
 }
