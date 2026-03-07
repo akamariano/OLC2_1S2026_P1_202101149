@@ -17,25 +17,35 @@ paramList
     ;
 
 param
-    : ID type               // a int
-    | ID STAR type          // a *int
-    | ID STAR arrayType     // a *[5]int
-    | ID arrayType          // a [5]int
+    : ID type               // a int32
+    | ID STAR type          // a *int32
+    | ID STAR arrayType     // a *[5]int32
+    | ID STAR sliceType     // a *[]int32
+    | ID arrayType          // a [5]int32
+    | ID sliceType          // a []int32
     ;
 
 returnType
     : type
     | arrayType
+    | sliceType
     | STAR type
     | STAR arrayType
+    | STAR sliceType
     | '(' multiReturnType (',' multiReturnType)* ')'
     ;
 
 multiReturnType
     : type
     | arrayType
+    | sliceType
     | STAR type
     | STAR arrayType
+    | STAR sliceType
+    ;
+
+sliceType
+    : '[' ']' type
     ;
 
 // ---------------- BLOCK ----------------
@@ -68,6 +78,7 @@ statement
 
 varDecl
     : VAR ID type ('=' expression)? ';'?
+    | VAR idList type '=' expList ';'?
     | VAR ID arrayType ('=' arrayLiteral)? ';'?
     | VAR ID arrayType '=' expression ';'?
     | VAR ID STAR type ';'?
@@ -101,6 +112,7 @@ arrayType
 arrayLiteral
     : '[' INT ']' type '{' arrayElements? '}'
     | '[' INT ']' arrayType '{' arrayRowElements? '}'
+    | '[' ']' type '{' arrayElements? '}'
     ;
 
 arrayElements
@@ -108,7 +120,7 @@ arrayElements
     ;
 
 arrayRowElements
-    : '{' arrayElements? '}' (',' '{' arrayElements? '}')*
+    : '{' arrayElements? '}' (',' '{' arrayElements? '}')* ','?
     ;
 
 arrayAccess
@@ -232,7 +244,7 @@ factor
     : unary ( ( STAR | SLASH | MOD ) unary )*
     ;
 
-// STAR aquí es desreferenciación — ANTLR lo distingue por contexto del parser
+// STAR aquí es desreferenciación o puntero
 unary
     : BANG unary
     | MINUS unary
@@ -284,8 +296,8 @@ FALSE       : 'false';
 NIL         : 'nil';
 
 // Types (antes de ID para que no sean parseados como identificadores)
-INT_TYPE    : 'int';
-FLOAT_TYPE  : 'float';
+INT_TYPE    : 'int32';
+FLOAT_TYPE  : 'float32';
 STRING_TYPE : 'string';
 BOOL_TYPE   : 'bool';
 RUNE_TYPE   : 'rune';

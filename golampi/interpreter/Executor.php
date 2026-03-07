@@ -21,7 +21,7 @@ class Executor extends \GolampiBaseVisitor {
     private $output    = [];
 
     // Tabla de punteros: id_ptr → ['var' => nombre, 'scope_index' => i]
-    // Usamos referencias PHP directas para simular punteros
+    // referencias de PHP directas para simular punteros
     private $pointers  = [];
 
     public function __construct() {
@@ -99,6 +99,7 @@ class Executor extends \GolampiBaseVisitor {
                         $v = '&' . $item->ID()->getText();
                     }
                     if (is_bool($v)) $v = $v ? 'true' : 'false';
+                    if (is_null($v)) $v = '<nil>';
                     if (is_array($v)) $v = $this->arrayToString($v);
                     $values[] = $v;
                 }
@@ -110,6 +111,10 @@ class Executor extends \GolampiBaseVisitor {
         // ---- len ----
         if ($name === 'len') {
             $arg = $this->visit($ctx->argList()->argItem(0)->expression());
+            // Si es una referencia (__ref__), resolver el valor real del caller
+            if (is_array($arg) && isset($arg['__ref__'])) {
+                $arg = $arg['__executor__']->getVar($arg['__ref__']);
+            }
             if (is_string($arg)) return strlen($arg);
             if (is_array($arg))  return count($arg);
             throw new Exception("len() requiere string o arreglo.");
@@ -135,11 +140,21 @@ class Executor extends \GolampiBaseVisitor {
         // ---- typeOf ----
         if ($name === 'typeOf') {
             $val = $this->visit($ctx->argList()->argItem(0)->expression());
-            if (is_int($val))    return 'int';
-            if (is_float($val))  return 'float';
-            if (is_string($val)) return 'string';
             if (is_bool($val))   return 'bool';
-            if (is_array($val))  return 'array';
+            if (is_int($val))    return 'int32';
+            if (is_float($val))  return 'float64';
+            if (is_string($val)) return 'string';
+            if (is_array($val))  {
+                $size = count($val);
+                // Inferir tipo del primer elemento
+                $first = isset($val[0]) ? $val[0] : null;
+                if (is_int($first))    $elemType = 'int32';
+                elseif (is_float($first)) $elemType = 'float64';
+                elseif (is_bool($first))  $elemType = 'bool';
+                elseif (is_string($first)) $elemType = 'string';
+                else $elemType = 'unknown';
+                return "[{$size}]{$elemType}";
+            }
             return 'nil';
         }
 
@@ -221,8 +236,19 @@ class Executor extends \GolampiBaseVisitor {
     // VARIABLES
     // ================================================================
     public function visitVarDecl($ctx) {
+        // VAR idList type '=' expList  (declaración múltiple: var a, b int32 = 1, 2)
+        if ($ctx->idList()) {
+            $ids   = $ctx->idList()->ID();
+            $exprs = $ctx->expList()->expression();
+            foreach ($ids as $i => $idNode) {
+                $val = isset($exprs[$i]) ? $this->visit($exprs[$i]) : $this->defaultValue($ctx->type()->getText());
+                $this->setVar($idNode->getText(), $val);
+            }
+            return null;
+        }
+
         // VAR ID arrayType ('=' arrayLiteral)?
-        // VAR ID arrayType  '=' expression       ← función que retorna arreglo
+        // VAR ID arrayType  '=' expression       - función que retorna arreglo
         if ($ctx->arrayType()) {
             $name = $ctx->ID()->getText();
             if ($ctx->arrayLiteral()) {
@@ -240,7 +266,7 @@ class Executor extends \GolampiBaseVisitor {
         }
 
         // VAR ID STAR type/arrayType  (puntero)
-        // Detectamos STAR como tercer hijo: VAR(0) ID(1) STAR(2) ...
+        // Detecta STAR como tercer hijo: VAR(0) ID(1) STAR(2) ...
         $child2 = $ctx->getChild(2);
         if ($child2 !== null && $child2->getText() === '*') {
             $this->setVar($ctx->ID()->getText(), null);
@@ -326,8 +352,8 @@ class Executor extends \GolampiBaseVisitor {
 
     private function defaultValue(string $type) {
         switch ($type) {
-            case 'int':    return 0;
-            case 'float':  return 0.0;
+            case 'int32':  return 0;
+            case 'float32': return 0.0;
             case 'string': return '';
             case 'bool':   return false;
             case 'rune':   return 0;
@@ -336,6 +362,17 @@ class Executor extends \GolampiBaseVisitor {
     }
 
     public function visitArrayLiteral($ctx): array {
+        // []type{e1, e2, ...}  - slice sin tamaño explícito
+        if ($ctx->INT() === null) {
+            $arr = [];
+            if ($ctx->arrayElements()) {
+                foreach ($ctx->arrayElements()->expression() as $expr) {
+                    $arr[] = $this->visit($expr);
+                }
+            }
+            return $arr;
+        }
+
         $size = (int)$ctx->INT()->getText();
         $arr  = [];
 
@@ -360,7 +397,6 @@ class Executor extends \GolampiBaseVisitor {
                     $arr[] = $rowArr;
                 }
             } else {
-                // sin inicializar → usar makeDefaultArray de la dimensión interna
                 for ($i = 0; $i < $size; $i++) $arr[$i] = [];
             }
         }
@@ -504,7 +540,25 @@ class Executor extends \GolampiBaseVisitor {
         $value = $this->visit($ctx->expression());
         $op    = $ctx->assignOp()->getText();
 
-        // Si la variable es un puntero y se asigna con *, tratarlo especial
+        // Si la variable es un __ref__ escalar, escribir en la variable original del caller
+        $raw = $this->getVar($name);
+        if (is_array($raw) && isset($raw['__ref__']) && !is_array($raw['__executor__']->getVar($raw['__ref__']))) {
+            $targetExec = $raw['__executor__'];
+            $targetName = $raw['__ref__'];
+            $cur = $targetExec->getVar($targetName);
+            switch ($op) {
+                case '=':  $targetExec->updateVar($targetName, $value); break;
+                case '+=': $targetExec->updateVar($targetName, is_string($cur) ? $cur . $value : $cur + $value); break;
+                case '-=': $targetExec->updateVar($targetName, $cur - $value); break;
+                case '*=': $targetExec->updateVar($targetName, $cur * $value); break;
+                case '/=':
+                    if ($value == 0) throw new Exception("División por cero.");
+                    $targetExec->updateVar($targetName, $cur / $value);
+                    break;
+            }
+            return null;
+        }
+
         switch ($op) {
             case '=':  $this->updateVar($name, $value); break;
             case '+=':
@@ -693,7 +747,12 @@ class Executor extends \GolampiBaseVisitor {
         for ($i = 1; $i < count($ctx->comparison()); $i++) {
             $right = $this->visit($ctx->comparison($i));
             $op    = $ctx->getChild(($i * 2) - 1)->getText();
-            $value = ($op === '==') ? ($value == $right) : ($value != $right);
+            // nil comparado con cualquier cosa → nil
+            if (is_null($value) || is_null($right)) {
+                $value = null;
+            } else {
+                $value = ($op === '==') ? ($value == $right) : ($value != $right);
+            }
         }
         return $value;
     }
@@ -773,7 +832,12 @@ class Executor extends \GolampiBaseVisitor {
     public function visitPrimary($ctx) {
         if ($ctx->getToken(\GolampiParser::INT, 0))    return (int)$ctx->getText();
         if ($ctx->getToken(\GolampiParser::FLOAT, 0))  return (float)$ctx->getText();
-        if ($ctx->getToken(\GolampiParser::STRING, 0)) return trim($ctx->getText(), '"');
+        if ($ctx->getToken(\GolampiParser::STRING, 0)) {
+            $raw = trim($ctx->getText(), '"');
+            // Interpretar secuencias de escape
+            $raw = str_replace(['\\n', '\\t', '\\"', '\\\\'], ["\n", "\t", '"', "\\"], $raw);
+            return $raw;
+        }
         if ($ctx->getToken(\GolampiParser::RUNE, 0)) {
             $raw = $ctx->getText();
             $ch  = trim($raw, "'");
@@ -784,7 +848,14 @@ class Executor extends \GolampiBaseVisitor {
         if ($ctx->getToken(\GolampiParser::NIL, 0))    return null;
 
         if ($ctx->arrayAccess()) return $this->visitArrayAccess($ctx->arrayAccess());
-        if ($ctx->ID())          return $this->getVar($ctx->ID()->getText());
+        if ($ctx->ID()) {
+            $val = $this->getVar($ctx->ID()->getText());
+            // Desreferenciar puntero escalar (__ref__ a int/float/bool)
+            if (is_array($val) && isset($val['__ref__']) && !is_array($val['__executor__']->getVar($val['__ref__']))) {
+                return $val['__executor__']->getVar($val['__ref__']);
+            }
+            return $val;
+        }
         if ($ctx->functionCall()) return $this->visit($ctx->functionCall());
         if ($ctx->expression())  return $this->visit($ctx->expression());
 

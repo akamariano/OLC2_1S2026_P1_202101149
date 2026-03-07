@@ -61,8 +61,24 @@ class SemanticVisitor extends GolampiBaseVisitor
         return "array[{$size}]{$ctx->type()->getText()}";
     }
 
+    private function typesCompatible(string $a, string $b): bool
+    {
+        if ($a === $b) return true;
+        // Normalizar: quitar ptr: de ambos para comparar base
+        $aBase = strpos($a, 'ptr:') === 0 ? substr($a, 4) : $a;
+        $bBase = strpos($b, 'ptr:') === 0 ? substr($b, 4) : $b;
+        // array[N]type es compatible con slice:type si el elemento coincide
+        $aElem = preg_replace('/^array\[\d+\]/', '', $aBase);
+        $bElem = strpos($bBase, 'slice:') === 0 ? substr($bBase, 6) : $bBase;
+        if ($aElem === $bElem) return true;
+        $aElem2 = strpos($aBase, 'slice:') === 0 ? substr($aBase, 6) : $aBase;
+        $bElem2 = preg_replace('/^array\[\d+\]/', '', $bBase);
+        return $aElem2 === $bElem2;
+    }
+
     private function arrayElementType(string $t): string
     {
+        if (strpos($t, 'slice:') === 0) return substr($t, 6);
         return preg_replace('/^array\[\d+\]/', '', $t);
     }
 
@@ -72,12 +88,12 @@ class SemanticVisitor extends GolampiBaseVisitor
     {
         $child1 = $paramCtx->getChild(1);
         if ($child1 !== null && $child1->getText() === '*') {
-            if ($paramCtx->arrayType()) {
-                return 'ptr:' . $this->arrayTypeToString($paramCtx->arrayType());
-            }
+            if ($paramCtx->arrayType())  return 'ptr:' . $this->arrayTypeToString($paramCtx->arrayType());
+            if ($paramCtx->sliceType())  return 'ptr:slice:' . $paramCtx->sliceType()->type()->getText();
             return 'ptr:' . $paramCtx->type()->getText();
         }
         if ($paramCtx->arrayType()) return $this->arrayTypeToString($paramCtx->arrayType());
+        if ($paramCtx->sliceType()) return 'slice:' . $paramCtx->sliceType()->type()->getText();
         return $paramCtx->type()->getText();
     }
 
@@ -86,9 +102,11 @@ class SemanticVisitor extends GolampiBaseVisitor
         $first = $ctx->getChild(0);
         if ($first !== null && $first->getText() === '*') {
             if ($ctx->arrayType()) return 'ptr:' . $this->arrayTypeToString($ctx->arrayType());
+            if ($ctx->sliceType()) return 'ptr:slice:' . $ctx->sliceType()->type()->getText();
             return 'ptr:' . $ctx->type()->getText();
         }
         if ($ctx->arrayType()) return $this->arrayTypeToString($ctx->arrayType());
+        if ($ctx->sliceType()) return 'slice:' . $ctx->sliceType()->type()->getText();
         if ($ctx->type())      return $ctx->type()->getText();
         return 'unknown';
     }
@@ -248,13 +266,14 @@ class SemanticVisitor extends GolampiBaseVisitor
             $args = $ctx->argList() ? $ctx->argList()->argItem() : [];
             if (count($args) !== 1) {
                 $this->addError("len() requiere 1 argumento.", $ctx);
-                return 'int';
+                return 'int32';
             }
             $t = $this->visit($args[0]->expression());
-            if ($t !== 'string' && strpos((string)$t, 'array') !== 0) {
+            $tBase = strpos((string)$t, 'ptr:') === 0 ? substr($t, 4) : $t;
+            if ($tBase !== 'string' && strpos((string)$tBase, 'array') !== 0 && strpos((string)$tBase, 'slice:') !== 0) {
                 $this->addError("len() requiere string o arreglo, se obtuvo '$t'.", $ctx);
             }
-            return 'int';
+            return 'int32';
         }
 
         if ($name === 'now') {
@@ -271,8 +290,8 @@ class SemanticVisitor extends GolampiBaseVisitor
             $t1 = $this->visit($args[1]->expression());
             $t2 = $this->visit($args[2]->expression());
             if ($t0 !== 'string') $this->addError("substr(): arg 1 debe ser string.", $ctx);
-            if ($t1 !== 'int')    $this->addError("substr(): arg 2 debe ser int.", $ctx);
-            if ($t2 !== 'int')    $this->addError("substr(): arg 3 debe ser int.", $ctx);
+            if ($t1 !== 'int32')    $this->addError("substr(): arg 2 debe ser int.", $ctx);
+            if ($t2 !== 'int32')    $this->addError("substr(): arg 3 debe ser int.", $ctx);
             return 'string';
         }
 
@@ -316,10 +335,14 @@ class SemanticVisitor extends GolampiBaseVisitor
                     $argType = $this->visit($argItem->expression());
                 }
                 if ($argType !== $param['type']) {
-                    $this->addError(
-                        "Parámetro '{$param['name']}' de '$name': se esperaba {$param['type']}, se obtuvo $argType.",
-                        $argItem
-                    );
+                    // Compatibilidad: ptr:array[N]T ↔ ptr:slice:T y array[N]T ↔ slice:T
+                    $compatible = $this->typesCompatible($argType, $param['type']);
+                    if (!$compatible) {
+                        $this->addError(
+                            "Parámetro '{$param['name']}' de '$name': se esperaba {$param['type']}, se obtuvo $argType.",
+                            $argItem
+                        );
+                    }
                 }
             }
         }
@@ -345,9 +368,34 @@ class SemanticVisitor extends GolampiBaseVisitor
     // ================================================================
     public function visitVarDecl($ctx)
     {
-        $line = $ctx->getStart()->getLine();
-        $col  = $ctx->getStart()->getCharPositionInLine() + 1;
+        $line  = $ctx->getStart()->getLine();
+        $col   = $ctx->getStart()->getCharPositionInLine() + 1;
         $scope = $this->scopeName();
+
+        // VAR idList type '=' expList  (var a, b int32 = 1, 2)
+        if ($ctx->idList()) {
+            $type  = $ctx->type()->getText();
+            $ids   = $ctx->idList()->ID();
+            $exprs = $ctx->expList()->expression();
+            foreach ($ids as $i => $idNode) {
+                $name = $idNode->getText();
+                if (isset($exprs[$i])) {
+                    $exprType = $this->visit($exprs[$i]);
+                    if ($exprType !== null && $exprType !== $type) {
+                        $this->addError(
+                            "Incompatibilidad de tipos en '$name': se esperaba '$type', se obtuvo '$exprType'.",
+                            $ctx
+                        );
+                    }
+                }
+                if ($this->symbolTable->resolveInCurrentScope($name)) {
+                    $this->addError("Identificador '$name' ya ha sido declarado en este ámbito.", $ctx);
+                    continue;
+                }
+                $this->symbolTable->defineVariable($name, new VariableSymbol($name, $type, $line, $col, $scope));
+            }
+            return null;
+        }
 
         if ($ctx->arrayType()) {
             $name    = $ctx->ID()->getText();
@@ -512,6 +560,23 @@ class SemanticVisitor extends GolampiBaseVisitor
     // ================================================================
     public function visitArrayLiteral($ctx): ?string
     {
+        // []type{e1, e2, ...} — slice sin tamaño explícito, tamaño inferido
+        if ($ctx->INT() === null) {
+            $elemType = $ctx->type()->getText();
+            $elems    = $ctx->arrayElements() ? $ctx->arrayElements()->expression() : [];
+            $size     = count($elems);
+            foreach ($elems as $expr) {
+                $t = $this->visit($expr);
+                if ($t !== null && $t !== $elemType) {
+                    $this->addError(
+                        "Elemento tipo '$t' no coincide con '$elemType' en literal de arreglo.",
+                        $expr
+                    );
+                }
+            }
+            return "array[{$size}]{$elemType}";
+        }
+
         $size = (int)$ctx->INT()->getText();
 
         if ($ctx->type()) {
@@ -576,18 +641,24 @@ class SemanticVisitor extends GolampiBaseVisitor
             return null;
         }
         $type = $symbol->getType();
-        // Si es puntero a arreglo (*[N]type), desreferenciar primero
+        // Desreferenciar puntero a arreglo o slice
         if (strpos($type, 'ptr:') === 0) {
             $type = substr($type, 4);
         }
+        // Normalizar slice:elemType a array[N]elemType para el chequeo (usamos 'array' prefix)
+        $isSlice = strpos($type, 'slice:') === 0;
         foreach ($ctx->expression() as $idxExpr) {
             $idxType = $this->visit($idxExpr);
-            if ($idxType !== null && $idxType !== 'int') {
+            if ($idxType !== null && $idxType !== 'int32') {
                 $this->addError("Índice de arreglo debe ser int, se obtuvo '$idxType'.", $idxExpr);
             }
-            if (strpos((string)$type, 'array') !== 0) {
+            if (!$isSlice && strpos((string)$type, 'array') !== 0) {
                 $this->addError("'$name' no es un arreglo.", $ctx);
                 return null;
+            }
+            // Para slice solo retornamos el tipo elemento
+            if ($isSlice) {
+                return substr($type, 6); // quitar 'slice:'
             }
             $type = $this->arrayElementType($type);
         }
@@ -603,20 +674,21 @@ class SemanticVisitor extends GolampiBaseVisitor
             return null;
         }
         $type      = $symbol->getType();
-        // Si es puntero a arreglo, desreferenciar
+        // Desreferenciar puntero a arreglo o slice
         if (strpos($type, 'ptr:') === 0) {
             $type = substr($type, 4);
         }
+        $isSlice   = strpos($type, 'slice:') === 0;
         $allExprs  = $ctx->expression();
         $idxExprs  = array_slice($allExprs, 0, count($allExprs) - 1);
         $valueExpr = $allExprs[count($allExprs) - 1];
 
         foreach ($idxExprs as $idxExpr) {
             $idxType = $this->visit($idxExpr);
-            if ($idxType !== null && $idxType !== 'int') {
+            if ($idxType !== null && $idxType !== 'int32') {
                 $this->addError("Índice debe ser int, se obtuvo '$idxType'.", $idxExpr);
             }
-            if (strpos((string)$type, 'array') !== 0) {
+            if (!$isSlice && strpos((string)$type, 'array') !== 0) {
                 $this->addError("'$name' no es un arreglo (demasiados índices).", $ctx);
                 return null;
             }
@@ -634,7 +706,7 @@ class SemanticVisitor extends GolampiBaseVisitor
                 );
             }
         } else {
-            if (!in_array($type, ['int', 'float'])) {
+            if (!in_array($type, ['int32', 'float32'])) {
                 $this->addError("Operador '$op' sobre arreglo requiere int o float.", $ctx);
             } elseif ($valueType !== null && $type !== $valueType) {
                 $this->addError("Incompatibilidad de tipos en '$op'.", $ctx);
@@ -681,26 +753,28 @@ class SemanticVisitor extends GolampiBaseVisitor
             return null;
         }
         $varType  = $symbol->getType();
+        // Si la variable es un puntero, tratarla como su tipo base para asignación directa
+        $effectiveType = strpos($varType, 'ptr:') === 0 ? substr($varType, 4) : $varType;
         $exprType = $this->visit($ctx->expression());
         $op       = $ctx->assignOp()->getText();
 
         if ($op === '=') {
-            if ($exprType !== null && $varType !== $exprType) {
+            if ($exprType !== null && $effectiveType !== $exprType) {
                 $this->addError(
                     "Incompatibilidad de tipos en asignación a '$name': se esperaba '$varType', se obtuvo '$exprType'.",
                     $ctx
                 );
             }
         } elseif ($op === '+=') {
-            if (!in_array($varType, ['int', 'float', 'string'])) {
+            if (!in_array($effectiveType, ['int32', 'float32', 'string'])) {
                 $this->addError("Operador '+=' no válido para tipo '$varType'.", $ctx);
-            } elseif ($exprType !== null && $varType !== $exprType) {
+            } elseif ($exprType !== null && $effectiveType !== $exprType) {
                 $this->addError("Incompatibilidad de tipos en '+=' sobre '$name'.", $ctx);
             }
         } else {
-            if (!in_array($varType, ['int', 'float'])) {
+            if (!in_array($effectiveType, ['int32', 'float32'])) {
                 $this->addError("Operador '$op' solo válido para int o float.", $ctx);
-            } elseif ($exprType !== null && $varType !== $exprType) {
+            } elseif ($exprType !== null && $effectiveType !== $exprType) {
                 $this->addError("Incompatibilidad de tipos en '$op' sobre '$name'.", $ctx);
             }
         }
@@ -765,7 +839,7 @@ class SemanticVisitor extends GolampiBaseVisitor
                 return null;
             }
             $this->symbolTable->defineVariable(
-                $id, new VariableSymbol($id, $exprType ?? 'int', $line, $col, $scope)
+                $id, new VariableSymbol($id, $exprType ?? 'int32', $line, $col, $scope)
             );
         } else {
             $sym = $this->symbolTable->resolveVariable($id);
@@ -787,7 +861,7 @@ class SemanticVisitor extends GolampiBaseVisitor
             return null;
         }
         if ($ctx->getChildCount() === 2) {
-            if (!in_array($sym->getType(), ['int', 'float'])) {
+            if (!in_array($sym->getType(), ['int32', 'float32'])) {
                 $this->addError("++/-- requiere int o float, '$id' es {$sym->getType()}.", $ctx);
             }
         } else {
@@ -847,7 +921,7 @@ class SemanticVisitor extends GolampiBaseVisitor
             $this->addError("Uso de variable no declarada: '$name'.", $ctx);
             return null;
         }
-        if (!in_array($symbol->getType(), ['int', 'float', 'rune'])) {
+        if (!in_array($symbol->getType(), ['int32', 'float32', 'rune'])) {
             $op = $ctx->getChild(1)->getText();
             $this->addError("Operador '$op' requiere int, float o rune, se obtuvo '{$symbol->getType()}'.", $ctx);
         }
@@ -959,7 +1033,7 @@ class SemanticVisitor extends GolampiBaseVisitor
             if ($type !== null && $right !== null) {
                 if ($type !== $right) {
                     $this->addError("Operación relacional entre tipos distintos '$type' y '$right'.", $ctx);
-                } elseif (!in_array($type, ['int', 'float'])) {
+                } elseif (!in_array($type, ['int32', 'float32'])) {
                     $this->addError("Operadores relacionales requieren int o float, se obtuvo '$type'.", $ctx);
                 }
             }
@@ -971,25 +1045,28 @@ class SemanticVisitor extends GolampiBaseVisitor
     public function visitTerm($ctx)
     {
         $type = $this->visit($ctx->factor(0));
+        // Desreferenciar puntero automáticamente (Golampi no requiere * explícito)
+        if (strpos((string)$type, 'ptr:') === 0) $type = substr($type, 4);
         for ($i = 1; $i < count($ctx->factor()); $i++) {
             $right = $this->visit($ctx->factor($i));
+            if (strpos((string)$right, 'ptr:') === 0) $right = substr($right, 4);
             $op    = $ctx->getChild(($i * 2) - 1)->getText();
             if ($type !== null && $right !== null) {
                 if ($op === '+') {
                     if ($type === 'string' && $right === 'string') {
                         // ok
-                    } elseif (in_array($type, ['int','float']) && $type === $right) {
+                    } elseif (in_array($type, ['int32','float32']) && $type === $right) {
                         // ok
-                    } elseif (in_array($type, ['int','float']) && in_array($right, ['int','float'])) {
-                        $type = 'float';
+                    } elseif (in_array($type, ['int32','float32']) && in_array($right, ['int32','float32'])) {
+                        $type = 'float32';
                     } else {
                         $this->addError("Operación '+' inválida entre '$type' y '$right'.", $ctx);
                     }
                 } else {
-                    if (!in_array($type, ['int','float']) || !in_array($right, ['int','float'])) {
+                    if (!in_array($type, ['int32','float32']) || !in_array($right, ['int32','float32'])) {
                         $this->addError("Operación '-' inválida entre '$type' y '$right'.", $ctx);
                     } elseif ($type !== $right) {
-                        $type = 'float';
+                        $type = 'float32';
                     }
                 }
             }
@@ -1000,19 +1077,21 @@ class SemanticVisitor extends GolampiBaseVisitor
     public function visitFactor($ctx)
     {
         $type = $this->visit($ctx->unary(0));
+        if (strpos((string)$type, 'ptr:') === 0) $type = substr($type, 4);
         for ($i = 1; $i < count($ctx->unary()); $i++) {
             $right = $this->visit($ctx->unary($i));
+            if (strpos((string)$right, 'ptr:') === 0) $right = substr($right, 4);
             $op    = $ctx->getChild(($i * 2) - 1)->getText();
             if ($type !== null && $right !== null) {
                 if ($op === '%') {
-                    if ($type !== 'int' || $right !== 'int') {
+                    if ($type !== 'int32' || $right !== 'int32') {
                         $this->addError("Operación '%' inválida entre '$type' y '$right': se requiere int.", $ctx);
                     }
                 } else {
-                    if (!in_array($type, ['int','float']) || !in_array($right, ['int','float'])) {
+                    if (!in_array($type, ['int32','float32']) || !in_array($right, ['int32','float32'])) {
                         $this->addError("Operación '$op' inválida entre '$type' y '$right'.", $ctx);
                     } elseif ($type !== $right) {
-                        $type = 'float';
+                        $type = 'float32';
                     }
                 }
             }
@@ -1032,7 +1111,7 @@ class SemanticVisitor extends GolampiBaseVisitor
             return 'bool';
         }
         if ($op === '-') {
-            if ($type !== null && !in_array($type, ['int', 'float'])) {
+            if ($type !== null && !in_array($type, ['int32', 'float32'])) {
                 $this->addError("Operador '-' unario requiere int o float, se obtuvo '$type'.", $ctx);
             }
             return $type;
@@ -1049,8 +1128,8 @@ class SemanticVisitor extends GolampiBaseVisitor
 
     public function visitPrimary($ctx)
     {
-        if ($ctx->getToken(GolampiParser::INT, 0))    return 'int';
-        if ($ctx->getToken(GolampiParser::FLOAT, 0))  return 'float';
+        if ($ctx->getToken(GolampiParser::INT, 0))    return 'int32';
+        if ($ctx->getToken(GolampiParser::FLOAT, 0))  return 'float32';
         if ($ctx->getToken(GolampiParser::STRING, 0)) return 'string';
         if ($ctx->getToken(GolampiParser::RUNE, 0))   return 'rune';
         if ($ctx->getToken(GolampiParser::TRUE, 0) ||

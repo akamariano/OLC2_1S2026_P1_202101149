@@ -66,6 +66,15 @@ interface GolampiVisitor extends ParseTreeVisitor
 	public function visitMultiReturnType(Context\MultiReturnTypeContext $context);
 
 	/**
+	 * Visit a parse tree produced by {@see GolampiParser::sliceType()}.
+	 *
+	 * @param Context\SliceTypeContext $context The parse tree.
+	 *
+	 * @return mixed The visitor result.
+	 */
+	public function visitSliceType(Context\SliceTypeContext $context);
+
+	/**
 	 * Visit a parse tree produced by {@see GolampiParser::block()}.
 	 *
 	 * @param Context\BlockContext $context The parse tree.

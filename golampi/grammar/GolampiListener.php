@@ -72,6 +72,16 @@ interface GolampiListener extends ParseTreeListener {
 	 */
 	public function exitMultiReturnType(Context\MultiReturnTypeContext $context): void;
 	/**
+	 * Enter a parse tree produced by {@see GolampiParser::sliceType()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterSliceType(Context\SliceTypeContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::sliceType()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitSliceType(Context\SliceTypeContext $context): void;
+	/**
 	 * Enter a parse tree produced by {@see GolampiParser::block()}.
 	 * @param $context The parse tree.
 	 */
