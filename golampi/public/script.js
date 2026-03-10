@@ -1,13 +1,10 @@
-/* ================================================================
-   ESTADO GLOBAL
-   ================================================================ */
-let lastResult  = null;   // Último resultado del servidor
-let currentFile = 'sin_titulo.golampi';
+// variables globales que se usan en todo el programa
+let lastResult  = null;   // último resultado que devuelve el servidor
+let currentFile = 'sin_titulo.golampi'; // nombre del archivo actual
 
-/* ================================================================
-   REFERENCIAS DOM
-   ================================================================ */
+// elementos del DOM que uso para la interfaz
 const editor      = document.getElementById('codeEditor');
+const lineNumbers = document.getElementById('lineNumbers');
 const consoleOut  = document.getElementById('consoleOutput');
 const errorsOut   = document.getElementById('errorsOutput');
 const symbolsOut  = document.getElementById('symbolsOutput');
@@ -17,11 +14,24 @@ const editorLabel = document.getElementById('editorLabel');
 const cursorPos   = document.getElementById('cursorPos');
 const fileInput   = document.getElementById('fileInput');
 
-/* ================================================================
-   POSICIÓN DEL CURSOR EN EL EDITOR
-   ================================================================ */
+// actualizar posición del cursor cuando se escribe o se hace clic
 editor.addEventListener('keyup', updateCursor);
 editor.addEventListener('click', updateCursor);
+editor.addEventListener('input', updateLineNumbers);
+editor.addEventListener('scroll', syncScroll);
+updateLineNumbers();
+
+function updateLineNumbers() {
+    const lines = editor.value.split('\n').length;
+    let out = '';
+    for (let i = 1; i <= lines; i++) out += i + '\n';
+    lineNumbers.textContent = out;
+    lineNumbers.scrollTop = editor.scrollTop;
+}
+
+function syncScroll() {
+    lineNumbers.scrollTop = editor.scrollTop;
+}
 
 function updateCursor() {
     const text  = editor.value.substring(0, editor.selectionStart);
@@ -31,9 +41,7 @@ function updateCursor() {
     cursorPos.textContent = `Ln ${ln}, Col ${col}`;
 }
 
-/* ================================================================
-   TABS
-   ================================================================ */
+// cambiar entre pestañas cuando el usuario hace clic
 document.querySelectorAll('.tab').forEach(btn => {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
@@ -47,9 +55,7 @@ function switchTab(name) {
     );
 }
 
-/* ================================================================
-   NUEVO ARCHIVO
-   ================================================================ */
+// crear un nuevo archivo limpiando el editor
 document.getElementById('newBtn').addEventListener('click', () => {
     if (editor.value.trim() !== '' &&
         !confirm('¿Crear un nuevo archivo? Se perderán los cambios no guardados.')) return;
@@ -57,12 +63,11 @@ document.getElementById('newBtn').addEventListener('click', () => {
     editor.value   = '';
     currentFile    = 'sin_titulo.golampi';
     setFileName(currentFile);
+    updateLineNumbers();
     resetOutput();
 });
 
-/* ================================================================
-   ABRIR ARCHIVO
-   ================================================================ */
+// abrir un archivo .golampi desde el disco
 document.getElementById('openBtn').addEventListener('click', () => {
     fileInput.click();
 });
@@ -76,21 +81,20 @@ fileInput.addEventListener('change', (e) => {
         editor.value = ev.target.result;
         currentFile  = file.name;
         setFileName(currentFile);
+        updateLineNumbers();
         resetOutput();
     };
     reader.readAsText(file);
-    // Limpiar input para poder abrir el mismo archivo de nuevo
+    // limpiar el input file para que pueda abrir el mismo archivo otra vez
     fileInput.value = '';
 });
 
-/* ================================================================
-   GUARDAR CÓDIGO
-   ================================================================ */
+// guardar el código del editor como archivo de texto
 document.getElementById('saveBtn').addEventListener('click', () => {
     saveFile(currentFile, editor.value, 'text/plain');
 });
 
-// Atajo Ctrl+S
+// permitir guardar con Ctrl+S y ejecutar con Ctrl+Enter
 document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
@@ -102,9 +106,7 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-/* ================================================================
-   EJECUTAR
-   ================================================================ */
+// ejecutar el análisis: léxico, sintáctico, semántico e interpretación
 document.getElementById('runBtn').addEventListener('click', async () => {
     consoleOut.innerHTML  = '<span class="muted">Analizando…</span>';
     errorsOut.innerHTML   = '';
@@ -125,7 +127,7 @@ document.getElementById('runBtn').addEventListener('click', async () => {
 
         lastResult = await response.json();
 
-        /* ---- CONSOLA ---- */
+        // mostrar resultado de ejecución en la consola
         if (lastResult.success) {
             const out = lastResult.output || 'Sin salida';
             consoleOut.innerHTML =
@@ -139,22 +141,22 @@ document.getElementById('runBtn').addEventListener('click', async () => {
             switchTab('errors');
         }
 
-        /* ---- ERRORES ---- */
+        // generar tabla de errores encontrados
         renderErrors(lastResult.errors || []);
         const ne = (lastResult.errors || []).length;
         setReportStatus('errors', ne === 0 ? 'Sin errores ✓' : `${ne} error(es)`, ne === 0 ? 'ok' : 'err');
 
-        /* ---- SÍMBOLOS ---- */
+        // mostrar tabla de símbolos (variables y funciones)
         renderSymbols(lastResult.symbols || {});
         const ns = ((lastResult.symbols || {}).variables || []).length;
         setReportStatus('symbols', `${ns} símbolo(s)`, 'ok');
 
-        /* ---- IMÁGENES ---- */
+        // mostrar imágenes generadas por Graphviz (AST, errores, símbolos)
         updateCardImage('errors',  lastResult.img_errors,  'dl-errors',  'preview-errors');
         updateCardImage('symbols', lastResult.img_symbols, 'dl-symbols', 'preview-symbols');
         updateCardImage('ast',     lastResult.img_ast,     'dl-ast',     'preview-ast');
 
-        /* ---- HABILITAR DESCARGAS ---- */
+        // permitir que el usuario descargue los reportes
         disableDownloads(false);
 
     } catch (err) {
@@ -166,10 +168,8 @@ document.getElementById('runBtn').addEventListener('click', async () => {
     }
 });
 
-/* ================================================================
-   LIMPIAR
-   ================================================================ */
-document.getElementById('clearBtn').addEventListener('click', resetOutput);
+// limpiar el editor y los reportes
+document.getElementById('clearBtn').addEventListener('click', () => { editor.value = ''; updateLineNumbers(); resetOutput(); });
 
 function resetOutput() {
     lastResult = null;
@@ -184,9 +184,7 @@ function resetOutput() {
     disableDownloads(true);
 }
 
-/* ================================================================
-   DESCARGAS
-   ================================================================ */
+// permitir descargar los reportes generados
 document.getElementById('dl-output').addEventListener('click', () => {
     if (!lastResult) return;
     const content = lastResult.output || 'Sin salida';
@@ -216,9 +214,7 @@ document.getElementById('dl-ast').addEventListener('click', () => {
 });
 
 
-/* ================================================================
-   RENDER: TABLA DE ERRORES
-   ================================================================ */
+// mostrar una tabla con todos los errores encontrados
 function renderErrors(errors) {
     if (!errors || errors.length === 0) {
         errorsOut.innerHTML = '<p class="placeholder">No se han detectado errores.</p>';
@@ -253,9 +249,7 @@ function renderErrors(errors) {
     errorsOut.innerHTML = html;
 }
 
-/* ================================================================
-   RENDER: TABLA DE SÍMBOLOS
-   ================================================================ */
+// mostrar tabla con variables y funciones declaradas
 function renderSymbols(symbols) {
     if (!symbols || (!symbols.functions && !symbols.variables)) {
         symbolsOut.innerHTML = '<p class="placeholder">Sin símbolos.</p>';
@@ -320,9 +314,7 @@ function renderSymbols(symbols) {
     symbolsOut.innerHTML = html;
 }
 
-/* ================================================================
-   HELPERS DE REPORTES
-   ================================================================ */
+// funciones auxiliares para actualizar el estado de los reportes
 function setReportStatus(id, text, state) {
     const el = document.getElementById('status-' + id);
     if (!el) return;
@@ -349,9 +341,8 @@ function baseName() {
     return currentFile.replace(/\.[^.]+$/, '');
 }
 
-/* ================================================================
-   HELPERS GENÉRICOS
-   ================================================================ */
+// funciones de utilidad que uso en varias partes del código
+function formatType(type) {
 function saveFile(filename, content, mimeType) {
     const blob = new Blob([content], { type: mimeType });
     const url  = URL.createObjectURL(blob);
@@ -395,7 +386,7 @@ function updateCardImage(reportId, b64, dlBtnId, previewBtnId) {
     }
 }
 
-/* Modal de preview */
+// Modal para mostrar imágenes generadas
 function openPreview(b64, title) {
     if (!b64) return;
     const existing = document.getElementById('img-modal');
@@ -446,4 +437,5 @@ function formatValue(value, type) {
     if (typeof value === 'boolean') return value ? 'true' : 'false';
     if (typeof value === 'string' && type === 'string') return `"${value}"`;
     return String(value);
+}
 }

@@ -11,10 +11,7 @@ class SymbolTable {
     // Funciones registradas
     private array $functions  = [];
 
-    // ================================================================
-    // SCOPE MANAGEMENT
-    // ================================================================
-
+    // manejar los ámbitos (scopes) de variables
     public function enterScope(string $name = ''): void {
         $this->scopeStack[] = ['name' => $name, 'vars' => []];
     }
@@ -28,10 +25,7 @@ class SymbolTable {
         return end($this->scopeStack)['name'] ?: 'global';
     }
 
-    // ================================================================
-    // VARIABLES
-    // ================================================================
-
+    // gestionar variables dentro de cada ámbito
     public function defineVariable(string $name, VariableSymbol $symbol): void {
         $idx = count($this->scopeStack) - 1;
         $this->scopeStack[$idx]['vars'][$name] = $symbol;
@@ -55,10 +49,7 @@ class SymbolTable {
         return $top['vars'][$name] ?? null;
     }
 
-    // ================================================================
-    // FUNCTIONS
-    // ================================================================
-
+    // registrar y recuperar funciones
     public function defineFunction(string $name, $symbol): void {
         $this->functions[$name] = $symbol;
     }
@@ -67,13 +58,7 @@ class SymbolTable {
         return $this->functions[$name] ?? null;
     }
 
-    // ================================================================
-    // SERIALIZATION
-    // ================================================================
-
-    /**
-     * Devuelve la tabla de símbolos estructurada para los reportes.
-     */
+    // convertir la tabla de símbolos a un formato para reportes
     public function toArray(): array {
         $vars = array_map(fn($s) => $s->toArray(), $this->allSymbols);
         $funcs = [];

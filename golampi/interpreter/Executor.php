@@ -32,9 +32,7 @@ class Executor extends \GolampiBaseVisitor {
         return implode("\n", $this->output);
     }
 
-    // ================================================================
-    // PROGRAM
-    // ================================================================
+    // procesar el programa: registrar funciones y ejecutar main
     public function visitProgram($ctx) {
         // 1. Registrar funciones (hoisting)
         foreach ($ctx->functionDecl() as $func) {
@@ -55,9 +53,7 @@ class Executor extends \GolampiBaseVisitor {
         return implode("\n", $this->output);
     }
 
-    // ================================================================
-    // FUNCTION CALL
-    // ================================================================
+    // executar una llamada a función (o función integrada como len, fmt.Println)
     private function callFunction($name, $args) {
         if (!isset($this->functions[$name])) {
             throw new Exception("Función '$name' no definida.");
@@ -175,9 +171,7 @@ class Executor extends \GolampiBaseVisitor {
         return $this->callFunction($name, $args);
     }
 
-    // ================================================================
-    // SCOPES
-    // ================================================================
+    // manejar scopes para variables locales y globales
     private function enterScope() { array_push($this->scopes, []); }
     private function exitScope()  { array_pop($this->scopes); }
 
@@ -204,9 +198,7 @@ class Executor extends \GolampiBaseVisitor {
         throw new Exception("Variable '$name' no definida.");
     }
 
-    // ================================================================
-    // BLOCK
-    // ================================================================
+    // ejecutar un bloque de código
     public function visitBlock($ctx) {
         $this->enterScope();
         try {
@@ -232,9 +224,7 @@ class Executor extends \GolampiBaseVisitor {
         }
     }
 
-    // ================================================================
-    // VARIABLES
-    // ================================================================
+    // procesar declaraciones y asignaciones de variables
     public function visitVarDecl($ctx) {
         // VAR idList type '=' expList  (declaración múltiple: var a, b int32 = 1, 2)
         if ($ctx->idList()) {
@@ -323,10 +313,7 @@ class Executor extends \GolampiBaseVisitor {
         $this->setVar($name, $value);
     }
 
-    // ================================================================
-    // ARRAY HELPERS
-    // ================================================================
-
+    // funciones auxiliares para trabajar con arreglos
     /**
      * Crea un arreglo con valores por defecto a partir de arrayType ctx.
      * Soporta multidimensional.
@@ -412,9 +399,7 @@ class Executor extends \GolampiBaseVisitor {
         return implode(' ', $parts);
     }
 
-    // ================================================================
-    // ARRAY ACCESS  a[i] / a[i][j]
-    // ================================================================
+    // acceso a elementos de arreglos: a[i], a[i][j], etc.
     public function visitArrayAccess($ctx) {
         $name = $ctx->ID()->getText();
         $arr  = $this->getVar($name);
@@ -435,9 +420,7 @@ class Executor extends \GolampiBaseVisitor {
         return $arr;
     }
 
-    // ================================================================
-    // PTR ASSIGN   *n = expr
-    // ================================================================
+    // asignar valores a través de punteros
     public function visitPtrAssign($ctx) {
         $name  = $ctx->ID()->getText();
         $value = $this->visit($ctx->expression());
@@ -468,9 +451,7 @@ class Executor extends \GolampiBaseVisitor {
         throw new \Exception("Puntero '$name' no inicializado.");
     }
 
-    // ================================================================
-    // ARRAY ASSIGN  a[i] = expr / a[i][j] = expr
-    // ================================================================
+    // asignación a elementos de arreglos
     public function visitArrayAssign($ctx) {
         $name     = $ctx->ID()->getText();
         $allExprs = $ctx->expression();
@@ -532,9 +513,7 @@ class Executor extends \GolampiBaseVisitor {
         return null;
     }
 
-    // ================================================================
-    // ASSIGNMENT
-    // ================================================================
+    // procesar asignaciones simples
     public function visitAssignment($ctx) {
         $name  = $ctx->ID()->getText();
         $value = $this->visit($ctx->expression());
@@ -574,9 +553,7 @@ class Executor extends \GolampiBaseVisitor {
         }
     }
 
-    // ================================================================
-    // IF
-    // ================================================================
+    // procesar sentencias if-else
     public function visitIfStmt($ctx) {
         $condition = $this->visit($ctx->expression());
         if ($condition) {
@@ -589,9 +566,7 @@ class Executor extends \GolampiBaseVisitor {
         return null;
     }
 
-    // ================================================================
-    // FOR
-    // ================================================================
+    // procesar bucles for
     public function visitForStmt($ctx) {
         $this->enterScope();
 
@@ -601,7 +576,8 @@ class Executor extends \GolampiBaseVisitor {
                 if ($ctx->expression() && !$this->visit($ctx->expression())) break;
                 try { $this->visitBlockInLoop($ctx->block()); }
                 catch (BreakException $e)    { break; }
-                catch (ContinueException $e) { /* continuar */ }
+                catch (ContinueException $e) { // continuar
+                }
                 if ($ctx->forPost()) $this->visit($ctx->forPost());
             }
         } elseif ($ctx->expression()) {
@@ -640,9 +616,7 @@ class Executor extends \GolampiBaseVisitor {
         }
     }
 
-    // ================================================================
-    // SWITCH
-    // ================================================================
+    // procesar sentencias switch
     public function visitSwitchStmt($ctx) {
         $switchValue = $this->visit($ctx->expression());
 
@@ -674,9 +648,7 @@ class Executor extends \GolampiBaseVisitor {
         return null;
     }
 
-    // ================================================================
-    // BREAK / CONTINUE / RETURN
-    // ================================================================
+    // manejo de break, continue y return
     public function visitBreakStmt($ctx)    { throw new BreakException(); }
     public function visitContinueStmt($ctx) { throw new ContinueException(); }
 
@@ -706,9 +678,7 @@ class Executor extends \GolampiBaseVisitor {
         throw new ReturnException(['__multi_return__' => true, 'values' => $values]);
     }
 
-    // ================================================================
-    // STATEMENT
-    // ================================================================
+    // procesar sentencias individuales
     public function visitStatement($ctx) {
         if ($ctx->expression()) {
             $this->visit($ctx->expression());
@@ -717,9 +687,7 @@ class Executor extends \GolampiBaseVisitor {
         return $this->visitChildren($ctx);
     }
 
-    // ================================================================
-    // EXPRESSIONS
-    // ================================================================
+    // procesar expresiones y operaciones
     public function visitExpression($ctx) { return $this->visit($ctx->logicalOr()); }
 
     public function visitLogicalOr($ctx) {

@@ -50,12 +50,15 @@
                 <span id="editorLabel">📄 sin_titulo.golampi</span>
                 <span id="cursorPos" class="cursor-pos">Ln 1, Col 1</span>
             </div>
-            <textarea id="codeEditor" spellcheck="false">func main() {
+            <div class="editor-wrapper">
+                <div id="lineNumbers" class="line-numbers">1</div>
+                <textarea id="codeEditor" spellcheck="false">func main() {
     x := 5
     y := 10
     z := x + y
     fmt.Println(z)
 }</textarea>
+            </div>
         </section>
 
         <!-- PANEL DERECHO -->

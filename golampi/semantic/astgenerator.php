@@ -70,10 +70,7 @@ class AstGenerator
         return $this->buildDot();
     }
 
-    // ================================================================
-    // RECORRIDO DEL ÁRBOL
-    // ================================================================
-
+    // recorrer el árbol sintáctico y construir nodos
     private function walk($node, ?int $parentId): int
     {
         $nodeId = $this->counter++;
@@ -136,10 +133,7 @@ class AstGenerator
         }
     }
 
-    // ================================================================
-    // CONSTRUCCIÓN DEL DOT
-    // ================================================================
-
+    // generar el código DOT para Graphviz
     private function buildDot(): string
     {
         $lines = [];

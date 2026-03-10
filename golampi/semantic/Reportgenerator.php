@@ -13,10 +13,7 @@ class ReportGenerator
 {
     private const DOT_BIN = '/usr/bin/dot';
 
-    // ================================================================
-    // PÚBLICO
-    // ================================================================
-
+    // métodos públicos que generan reportes como imágenes JPG
     /**
      * AST: recorre el árbol ANTLR y genera un grafo dirigido.
      * Devuelve base64 JPG.
@@ -95,10 +92,7 @@ class ReportGenerator
         return self::dotToJpg($dot);
     }
 
-    // ================================================================
-    // AST — CONSTRUCCIÓN DEL GRAFO
-    // ================================================================
-
+    // construir el grafo del árbol sintáctico
     private int   $counter  = 0;
     private array $nodeDefs = [];
     private array $edges    = [];
@@ -218,10 +212,7 @@ class ReportGenerator
         }
     }
 
-    // ================================================================
-    // TABLAS — CONSTRUCCIÓN HTML-LIKE CON RECORD NODES
-    // ================================================================
-
+    // construir tablas HTML-like con record nodes para Graphviz
     private static function buildTableDot(
         string $title,
         array  $headers,
@@ -282,10 +273,7 @@ class ReportGenerator
         return implode("\n", $lines);
     }
 
-    // ================================================================
-    // GRAPHVIZ → JPG (base64)
-    // ================================================================
-
+    // convertir DOT a imagen JPG usando Graphviz
     private static function dotToJpg(string $dot): string
     {
         $bin = self::DOT_BIN;
@@ -324,10 +312,7 @@ class ReportGenerator
         return base64_encode($jpg);
     }
 
-    // ================================================================
-    // HELPERS
-    // ================================================================
-
+    // funciones de utilidad para escapar texto y formatear
     private function esc(string $text): string
     {
         $text = str_replace(['\\', '"', "\n", "\r", '<', '>'], ['\\\\', '\\"', '\\n', '', '', ''], $text);

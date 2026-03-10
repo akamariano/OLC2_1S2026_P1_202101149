@@ -175,6 +175,40 @@ textarea {
 }
 
 /* ================================================================
+   EDITOR CON NÚMEROS DE LÍNEA
+   ================================================================ */
+.editor-wrapper {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    min-height: 0;
+}
+
+.line-numbers {
+    background: #0f172a;
+    color: #3d5068;
+    padding: 12px 10px 12px 10px;
+    text-align: right;
+    font-size: 13px;
+    line-height: 1.7;
+    user-select: none;
+    white-space: pre;
+    min-width: 42px;
+    border-right: 1px solid #1e293b;
+    overflow: hidden;
+    font-family: "Fira Code", monospace;
+    flex-shrink: 0;
+}
+
+#codeEditor {
+    padding: 12px 14px;
+    overflow-y: scroll;
+    overflow-x: auto;
+    white-space: pre;
+    flex: 1;
+}
+
+/* ================================================================
    TABS
    ================================================================ */
 .tabs {

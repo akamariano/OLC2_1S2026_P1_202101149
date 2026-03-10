@@ -22,10 +22,7 @@ class SemanticVisitor extends GolampiBaseVisitor
     public function getErrors(): array            { return $this->errors;      }
     public function hasErrors(): bool             { return count($this->errors) > 0; }
 
-    // ================================================================
-    // ERROR ACCUMULATION
-    // ================================================================
-
+    // acumular errores encontrados durante el análisis semántico
     private function addError(string $msg, $ctx, string $type = 'Semántico'): void
     {
         $line   = 0;
@@ -48,10 +45,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         ];
     }
 
-    // ================================================================
-    // TYPE HELPERS
-    // ================================================================
-
+    // funciones auxiliares para trabajar con tipos de datos
     private function arrayTypeToString($ctx): string
     {
         $size = $ctx->INT()->getText();
@@ -147,16 +141,14 @@ class SemanticVisitor extends GolampiBaseVisitor
         return $this->symbolTable->currentScopeName();
     }
 
-    // ================================================================
-    // PROGRAM
-    // ================================================================
+    // procesar el programa completo: funciones y variables globales
     public function visitProgram($ctx)
     {
-        // 1. Registrar firmas de funciones (hoisting)
+        // 1. registrar las firmas de todas las funciones (hoisting)
         foreach ($ctx->functionDecl() as $func) {
             $this->registerFunctionSignature($func);
         }
-        // 2. Procesar var/const globales en orden
+        // 2. procesar variables y constantes declaradas a nivel global
         $this->symbolTable->enterScope('global');
         foreach ($ctx->children as $child) {
             $class = get_class($child);
@@ -165,7 +157,7 @@ class SemanticVisitor extends GolampiBaseVisitor
                 $this->visit($child);
             }
         }
-        // 3. Visitar cuerpos de funciones
+        // 3. analizar el cuerpo de cada función
         foreach ($ctx->functionDecl() as $func) {
             $this->visitFunctionBody($func);
         }
@@ -173,9 +165,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         return null;
     }
 
-    // ================================================================
-    // FUNCTIONS
-    // ================================================================
+    // registrar y validar funciones declaradas en el programa
     private function registerFunctionSignature($ctx): void
     {
         $name        = $ctx->ID()->getText();
@@ -351,9 +341,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         return count($returnTypes) > 0 ? $returnTypes[0] : null;
     }
 
-    // ================================================================
-    // BLOCK
-    // ================================================================
+    // procesar bloques de código (crean nuevos ámbitos)
     public function visitBlock($ctx)
     {
         $parentScope = $this->scopeName();
@@ -363,9 +351,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         return null;
     }
 
-    // ================================================================
-    // VARIABLE DECLARATIONS
-    // ================================================================
+    // procesar declaraciones de variables
     public function visitVarDecl($ctx)
     {
         $line  = $ctx->getStart()->getLine();
@@ -555,9 +541,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         return null;
     }
 
-    // ================================================================
-    // ARRAY LITERAL / ACCESS / ASSIGN
-    // ================================================================
+    // procesar literales de arreglos, acceso a elementos y asignaciones
     public function visitArrayLiteral($ctx): ?string
     {
         // []type{e1, e2, ...} — slice sin tamaño explícito, tamaño inferido
@@ -781,9 +765,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         return null;
     }
 
-    // ================================================================
-    // IF / FOR / SWITCH / BREAK / CONTINUE
-    // ================================================================
+    // procesar sentencias de control: if, for, switch, break, continue
     public function visitIfStmt($ctx)
     {
         $condType = $this->visit($ctx->expression());
@@ -928,9 +910,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         return null;
     }
 
-    // ================================================================
-    // RETURN
-    // ================================================================
+    // validar sentencias return dentro de funciones
     public function visitReturnStmt($ctx)
     {
         if ($this->currentFunction === null) {
@@ -981,9 +961,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         return null;
     }
 
-    // ================================================================
-    // EXPRESSIONS
-    // ================================================================
+    // procesar expresiones y operaciones matemáticas/lógicas
     public function visitExpression($ctx) { return $this->visit($ctx->logicalOr()); }
 
     public function visitLogicalOr($ctx)

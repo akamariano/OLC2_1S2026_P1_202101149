@@ -3,7 +3,7 @@ header('Content-Type: application/json');
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-/* -------- GRAMMAR -------- */
+// incluir clases del analizador léxico y sintáctico (ANTLR)
 require_once __DIR__ . '/../grammar/GolampiLexer.php';
 require_once __DIR__ . '/../grammar/GolampiParser.php';
 require_once __DIR__ . '/../grammar/GolampiVisitor.php';
@@ -11,16 +11,16 @@ require_once __DIR__ . '/../grammar/GolampiBaseVisitor.php';
 require_once __DIR__ . '/../grammar/GolampiListener.php';
 require_once __DIR__ . '/../grammar/GolampiBaseListener.php';
 
-/* -------- SEMANTIC -------- */
+// incluir clases para el análisis semántico
 require_once __DIR__ . '/../semantic/SymbolTable.php';
 require_once __DIR__ . '/../semantic/VariableSymbol.php';
 require_once __DIR__ . '/../semantic/FunctionSymbol.php';
 require_once __DIR__ . '/../semantic/SemanticVisitor.php';
 
-/* -------- INTERPRETER -------- */
+// incluir la clase ejecutora (intérprete)
 require_once __DIR__ . '/../interpreter/Executor.php';
 
-/* -------- REPORTS -------- */
+// incluir generador de reportes
 require_once __DIR__ . '/../semantic/Reportgenerator.php';
 
 use Antlr\Antlr4\Runtime\InputStream;
@@ -28,7 +28,7 @@ use Antlr\Antlr4\Runtime\CommonTokenStream;
 use Antlr\Antlr4\Runtime\Error\Listeners\BaseErrorListener;
 
 /**
- * Acumula errores léxicos y sintácticos con línea, columna y token.
+ * clase que recopila errores del analizador léxico y sintáctico
  */
 class GolampiErrorListener extends BaseErrorListener
 {
@@ -42,7 +42,7 @@ class GolampiErrorListener extends BaseErrorListener
         string $msg,
         $e
     ): void {
-        // Determinar si es léxico o sintáctico
+        // determinar si el error es léxico o sintáctico
         $isLexer = ($offendingSymbol === null || get_class($recognizer) === 'GolampiLexer');
         $type    = $isLexer ? 'Léxico' : 'Sintáctico';
 
@@ -50,11 +50,11 @@ class GolampiErrorListener extends BaseErrorListener
             ? $offendingSymbol->getText()
             : '?';
 
-        // Descripción legible
+        // crear un mensaje de error que sea fácil de entender
         if ($isLexer) {
             $description = "Símbolo no reconocido: '$token'";
         } else {
-            // Limpiar el mensaje técnico de ANTLR a algo legible
+            // simplificar el mensaje técnico de ANTLR
             $description = $this->humanize($msg, $token);
         }
 
@@ -91,9 +91,7 @@ class GolampiErrorListener extends BaseErrorListener
     public function getErrors(): array { return $this->errors; }
 }
 
-/* ======================================================
-   MAIN
-   ====================================================== */
+// punto de entrada del analizador - recibe el código a analizar
 $data = json_decode(file_get_contents("php://input"), true);
 $code = $data["code"] ?? "";
 
@@ -105,7 +103,7 @@ $imgErrors     = '';
 $imgSymbols    = '';
 
 try {
-    /* ---- LÉXICO + SINTÁCTICO ---- */
+    // validar que el código sea correcto usando el analizador léxico y sintáctico
     $input  = InputStream::fromString($code);
     $lexer  = new GolampiLexer($input);
     $tokens = new CommonTokenStream($lexer);
@@ -120,19 +118,19 @@ try {
 
     $tree = $parser->program();
 
-    // Acumular errores léxicos/sintácticos pero continuar si es posible
+    // acumular errores pero intentar continuar con el análisis
     if ($errorListener->hasErrors()) {
         $allErrors = array_merge($allErrors, $errorListener->getErrors());
     }
 
-    /* ---- IMÁGENES DE REPORTE (siempre, incluso con errores parciales) ---- */
+    // generar imágenes del AST incluso si hay algunos errores
     try {
         $imgAst = ReportGenerator::astJpg($tree, $parser);
     } catch (\Throwable $e) {
         $imgAst = '';
     }
 
-    /* ---- SEMÁNTICO (siempre corre, acumula errores) ---- */
+    // realizar el análisis semántico (siempre)
     $semantic = new SemanticVisitor();
     try {
         $semantic->visit($tree);
@@ -148,7 +146,7 @@ try {
     $allErrors     = array_merge($allErrors, $semantic->getErrors());
     $symbolsReport = $semantic->getSymbolTable()->toArray();
 
-    /* ---- EJECUCIÓN (solo si no hay errores) ---- */
+    // ejecutar el programa solo si no hay errores
     if (empty($allErrors)) {
         $executor = new \Interpreter\Executor();
         $executor->visit($tree);
@@ -164,7 +162,7 @@ try {
     ];
 }
 
-/* ---- IMÁGENES DE TABLAS (después de tener datos completos) ---- */
+// generar imágenes de las tablas de errores y símbolos
 try {
     $imgErrors  = ReportGenerator::errorsJpg($allErrors);
 } catch (\Throwable $e) { $imgErrors = ''; }
@@ -173,7 +171,7 @@ try {
     $imgSymbols = ReportGenerator::symbolsJpg($symbolsReport);
 } catch (\Throwable $e) { $imgSymbols = ''; }
 
-/* ---- RESPUESTA ---- */
+// enviar la respuesta en formato JSON
 echo json_encode([
     'success'     => empty($allErrors),
     'output'      => $output,
