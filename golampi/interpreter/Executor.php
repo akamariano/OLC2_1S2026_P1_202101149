@@ -19,9 +19,10 @@ class Executor extends \GolampiBaseVisitor {
     public  $scopes    = [];
     private $functions = [];
     private $output    = [];
+    private $constants = [];   // nombres de constantes declaradas, inmutables en runtime
 
-    // Tabla de punteros: id_ptr → ['var' => nombre, 'scope_index' => i]
-    // referencias de PHP directas para simular punteros
+    // tabla de punteros: simula referencias mediante estructuras array
+    // mantiene asociación entre identificador y su scope para acceso por referencia
     private $pointers  = [];
 
     public function __construct() {
@@ -32,13 +33,13 @@ class Executor extends \GolampiBaseVisitor {
         return implode("\n", $this->output);
     }
 
-    // procesar el programa: registrar funciones y ejecutar main
+    // procesa el programa: registra funciones y ejecuta main
     public function visitProgram($ctx) {
-        // 1. Registrar funciones (hoisting)
+        // registra las firmas de funciones (hoisting dinámico)
         foreach ($ctx->functionDecl() as $func) {
             $this->functions[$func->ID()->getText()] = $func;
         }
-        // 2. Evaluar var/const globales en orden
+        // evalúa variables y constantes declaradas a nivel global en orden
         foreach ($ctx->children as $child) {
             $class = get_class($child);
             if (str_contains($class, 'VarDeclContext') ||
@@ -53,7 +54,7 @@ class Executor extends \GolampiBaseVisitor {
         return implode("\n", $this->output);
     }
 
-    // executar una llamada a función (o función integrada como len, fmt.Println)
+    // ejecuta una llamada a función, ya sea de usuario o integrada (len, fmt.Println, etc.)
     private function callFunction($name, $args) {
         if (!isset($this->functions[$name])) {
             throw new Exception("Función '$name' no definida.");
@@ -171,7 +172,7 @@ class Executor extends \GolampiBaseVisitor {
         return $this->callFunction($name, $args);
     }
 
-    // manejar scopes para variables locales y globales
+    // gestiona scopes para mantener variables locales y globales separadas
     private function enterScope() { array_push($this->scopes, []); }
     private function exitScope()  { array_pop($this->scopes); }
 
@@ -198,7 +199,7 @@ class Executor extends \GolampiBaseVisitor {
         throw new Exception("Variable '$name' no definida.");
     }
 
-    // ejecutar un bloque de código
+    // ejecuta un bloque de código dentro de su propio ámbito
     public function visitBlock($ctx) {
         $this->enterScope();
         try {
@@ -224,7 +225,7 @@ class Executor extends \GolampiBaseVisitor {
         }
     }
 
-    // procesar declaraciones y asignaciones de variables
+    // procesa declaraciones de variables en todos sus formatos
     public function visitVarDecl($ctx) {
         // VAR idList type '=' expList  (declaración múltiple: var a, b int32 = 1, 2)
         if ($ctx->idList()) {
@@ -311,12 +312,13 @@ class Executor extends \GolampiBaseVisitor {
         $name  = $ctx->ID()->getText();
         $value = $this->visit($ctx->expression());
         $this->setVar($name, $value);
+        $this->constants[$name] = true;   // marcar como inmutable
     }
 
-    // funciones auxiliares para trabajar con arreglos
+    // funciones auxiliares para administrar arreglos
     /**
-     * Crea un arreglo con valores por defecto a partir de arrayType ctx.
-     * Soporta multidimensional.
+     * Crea un arreglo con valores por defecto según el tipo especificado
+     * Soporta arreglos multidimensionales
      */
     private function makeDefaultArray($arrayTypeCtx): array {
         $size = (int)$arrayTypeCtx->INT()->getText();
@@ -391,6 +393,7 @@ class Executor extends \GolampiBaseVisitor {
         return $arr;
     }
 
+    // convierte una estructura de arreglo a su representación en cadena
     private function arrayToString(array $arr): string {
         $parts = [];
         foreach ($arr as $v) {
@@ -399,7 +402,7 @@ class Executor extends \GolampiBaseVisitor {
         return implode(' ', $parts);
     }
 
-    // acceso a elementos de arreglos: a[i], a[i][j], etc.
+    // accede a elementos de arreglos en múltiples dimensiones: a[i], a[i][j], etc.
     public function visitArrayAccess($ctx) {
         $name = $ctx->ID()->getText();
         $arr  = $this->getVar($name);
@@ -420,7 +423,7 @@ class Executor extends \GolampiBaseVisitor {
         return $arr;
     }
 
-    // asignar valores a través de punteros
+    // asigna valores a variables mediante punteros o referencias
     public function visitPtrAssign($ctx) {
         $name  = $ctx->ID()->getText();
         $value = $this->visit($ctx->expression());
@@ -451,7 +454,7 @@ class Executor extends \GolampiBaseVisitor {
         throw new \Exception("Puntero '$name' no inicializado.");
     }
 
-    // asignación a elementos de arreglos
+    // asigna valores a elementos de arreglos con manejo de índices múltiples
     public function visitArrayAssign($ctx) {
         $name     = $ctx->ID()->getText();
         $allExprs = $ctx->expression();
@@ -492,12 +495,21 @@ class Executor extends \GolampiBaseVisitor {
             $indices[] = $this->visit($idxExpr);
         }
 
-        // Navegar hasta el penúltimo nivel
+        // Navegar hasta el penúltimo nivel con bounds check
         for ($k = 0; $k < count($indices) - 1; $k++) {
-            $ref = &$ref[$indices[$k]];
+            $idx = $indices[$k];
+            if (!is_array($ref) || !array_key_exists($idx, $ref)) {
+                throw new Exception("Índice $idx fuera de rango en '$name'.");
+            }
+            $ref = &$ref[$idx];
         }
 
         $lastIdx = $indices[count($indices) - 1];
+
+        // Bounds check en el nivel final
+        if (!is_array($ref) || !array_key_exists($lastIdx, $ref)) {
+            throw new Exception("Índice $lastIdx fuera de rango en '$name'.");
+        }
 
         switch ($op) {
             case '=':  $ref[$lastIdx] = $value; break;
@@ -513,11 +525,16 @@ class Executor extends \GolampiBaseVisitor {
         return null;
     }
 
-    // procesar asignaciones simples
+    // procesa asignaciones a variables simples con validación de constantes
     public function visitAssignment($ctx) {
         $name  = $ctx->ID()->getText();
         $value = $this->visit($ctx->expression());
         $op    = $ctx->assignOp()->getText();
+
+        // Bloquear asignación a constantes en runtime
+        if (isset($this->constants[$name])) {
+            throw new Exception("No se puede modificar la constante '$name'.");
+        }
 
         // Si la variable es un __ref__ escalar, escribir en la variable original del caller
         $raw = $this->getVar($name);
@@ -553,7 +570,7 @@ class Executor extends \GolampiBaseVisitor {
         }
     }
 
-    // procesar sentencias if-else
+    // procesa sentencias condicionales if-else con ramificación
     public function visitIfStmt($ctx) {
         $condition = $this->visit($ctx->expression());
         if ($condition) {
@@ -566,7 +583,7 @@ class Executor extends \GolampiBaseVisitor {
         return null;
     }
 
-    // procesar bucles for
+    // procesa bucles for en todas sus variantes (init/cond/post)
     public function visitForStmt($ctx) {
         $this->enterScope();
 
@@ -598,6 +615,7 @@ class Executor extends \GolampiBaseVisitor {
         $this->exitScope();
     }
 
+    // inicializa la variable de iteración en un bucle for
     public function visitForInit($ctx) {
         $name  = $ctx->ID()->getText();
         $value = $this->visit($ctx->expression());
@@ -606,6 +624,7 @@ class Executor extends \GolampiBaseVisitor {
         else              $this->updateVar($name, $value);
     }
 
+    // actualiza la variable de iteración al final de cada ciclo
     public function visitForPost($ctx) {
         $name = $ctx->ID()->getText();
         if ($ctx->getChildCount() === 2) {
@@ -616,7 +635,7 @@ class Executor extends \GolampiBaseVisitor {
         }
     }
 
-    // procesar sentencias switch
+    // procesa sentencias switch con casos y default
     public function visitSwitchStmt($ctx) {
         $switchValue = $this->visit($ctx->expression());
 
@@ -648,7 +667,7 @@ class Executor extends \GolampiBaseVisitor {
         return null;
     }
 
-    // manejo de break, continue y return
+    // gestiona saltos de control en bucles
     public function visitBreakStmt($ctx)    { throw new BreakException(); }
     public function visitContinueStmt($ctx) { throw new ContinueException(); }
 
@@ -678,7 +697,7 @@ class Executor extends \GolampiBaseVisitor {
         throw new ReturnException(['__multi_return__' => true, 'values' => $values]);
     }
 
-    // procesar sentencias individuales
+    // procesa sentencias individuales dentro de bloques
     public function visitStatement($ctx) {
         if ($ctx->expression()) {
             $this->visit($ctx->expression());
@@ -687,9 +706,10 @@ class Executor extends \GolampiBaseVisitor {
         return $this->visitChildren($ctx);
     }
 
-    // procesar expresiones y operaciones
+    // procesa expresiones aritméticas y booleanas
     public function visitExpression($ctx) { return $this->visit($ctx->logicalOr()); }
 
+    // evalúa operaciones lógicas OR con cortocircuito
     public function visitLogicalOr($ctx) {
         $operands = $ctx->logicalAnd();
         $result   = $this->visit($operands[0]);
@@ -700,6 +720,7 @@ class Executor extends \GolampiBaseVisitor {
         return $result;
     }
 
+    // evalúa operaciones lógicas AND con cortocircuito
     public function visitLogicalAnd($ctx) {
         $operands = $ctx->equality();
         $result   = $this->visit($operands[0]);
@@ -710,6 +731,7 @@ class Executor extends \GolampiBaseVisitor {
         return $result;
     }
 
+    // evalúa operaciones de igualdad y desigualdad, maneja nil
     public function visitEquality($ctx) {
         $value = $this->visit($ctx->comparison(0));
         for ($i = 1; $i < count($ctx->comparison()); $i++) {
@@ -725,11 +747,13 @@ class Executor extends \GolampiBaseVisitor {
         return $value;
     }
 
+    // evalúa operaciones relacionales (<, >, <=, >=)
     public function visitComparison($ctx) {
         $value = $this->visit($ctx->term(0));
         for ($i = 1; $i < count($ctx->term()); $i++) {
             $right = $this->visit($ctx->term($i));
             $op    = $ctx->getChild(($i * 2) - 1)->getText();
+            if ($value === null || $right === null) { $value = null; continue; }
             if (is_int($value) && is_float($right)) $value = (float)$value;
             if (is_float($value) && is_int($right))  $right = (float)$right;
             switch ($op) {
@@ -742,11 +766,13 @@ class Executor extends \GolampiBaseVisitor {
         return $value;
     }
 
+    // evalúa operaciones de suma y resta
     public function visitTerm($ctx) {
         $value = $this->visit($ctx->factor(0));
         for ($i = 1; $i < count($ctx->factor()); $i++) {
             $right = $this->visit($ctx->factor($i));
             $op    = $ctx->getChild(($i * 2) - 1)->getText();
+            if ($value === null || $right === null) { $value = null; continue; }
             if ($op === '+') {
                 $value = (is_string($value) && is_string($right)) ? $value . $right : $value + $right;
             } else {
@@ -756,16 +782,26 @@ class Executor extends \GolampiBaseVisitor {
         return $value;
     }
 
+    // evalúa operaciones de multiplicación, división y módulo
     public function visitFactor($ctx) {
         $value = $this->visit($ctx->unary(0));
         for ($i = 1; $i < count($ctx->unary()); $i++) {
             $right = $this->visit($ctx->unary($i));
             $op    = $ctx->getChild(($i * 2) - 1)->getText();
+            if ($value === null || $right === null) { $value = null; continue; }
             switch ($op) {
-                case '*': $value = $value * $right; break;
+                case '*':
+                    // int32 * string = repetición de cadena (según spec)
+                    if (is_int($value) && is_string($right)) {
+                        $value = str_repeat($right, max(0, $value));
+                    } elseif (is_string($value) && is_int($right)) {
+                        $value = str_repeat($value, max(0, $right));
+                    } else {
+                        $value = $value * $right;
+                    }
+                    break;
                 case '/':
                     if ($right == 0) throw new Exception("División por cero.");
-                    // División entera si ambos operandos son enteros
                     $value = (is_int($value) && is_int($right))
                         ? intdiv($value, $right)
                         : $value / $right;
@@ -779,6 +815,7 @@ class Executor extends \GolampiBaseVisitor {
         return $value;
     }
 
+    // evalúa operadores unarios y desreferenciación
     public function visitUnary($ctx) {
         if ($ctx->primary()) return $this->visit($ctx->primary());
 
@@ -797,6 +834,7 @@ class Executor extends \GolampiBaseVisitor {
         return $value;
     }
 
+    // procesa valores primitivos: literales, variables, funciones y expresiones parentesizadas
     public function visitPrimary($ctx) {
         if ($ctx->getToken(\GolampiParser::INT, 0))    return (int)$ctx->getText();
         if ($ctx->getToken(\GolampiParser::FLOAT, 0))  return (float)$ctx->getText();

@@ -1,8 +1,12 @@
-// variables globales que se usan en todo el programa
-let lastResult  = null;   // último resultado que devuelve el servidor
-let currentFile = 'sin_titulo.golampi'; // nombre del archivo actual
+/* ================================================================
+   ESTADO GLOBAL
+   ================================================================ */
+let lastResult  = null;   // Último resultado del servidor
+let currentFile = 'sin_titulo.golampi';
 
-// elementos del DOM que uso para la interfaz
+/* ================================================================
+   REFERENCIAS DOM
+   ================================================================ */
 const editor      = document.getElementById('codeEditor');
 const lineNumbers = document.getElementById('lineNumbers');
 const consoleOut  = document.getElementById('consoleOutput');
@@ -14,7 +18,9 @@ const editorLabel = document.getElementById('editorLabel');
 const cursorPos   = document.getElementById('cursorPos');
 const fileInput   = document.getElementById('fileInput');
 
-// actualizar posición del cursor cuando se escribe o se hace clic
+/* ================================================================
+   POSICIÓN DEL CURSOR EN EL EDITOR
+   ================================================================ */
 editor.addEventListener('keyup', updateCursor);
 editor.addEventListener('click', updateCursor);
 editor.addEventListener('input', updateLineNumbers);
@@ -41,7 +47,9 @@ function updateCursor() {
     cursorPos.textContent = `Ln ${ln}, Col ${col}`;
 }
 
-// cambiar entre pestañas cuando el usuario hace clic
+/* ================================================================
+   TABS
+   ================================================================ */
 document.querySelectorAll('.tab').forEach(btn => {
     btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
@@ -55,7 +63,9 @@ function switchTab(name) {
     );
 }
 
-// crear un nuevo archivo limpiando el editor
+/* ================================================================
+   NUEVO ARCHIVO
+   ================================================================ */
 document.getElementById('newBtn').addEventListener('click', () => {
     if (editor.value.trim() !== '' &&
         !confirm('¿Crear un nuevo archivo? Se perderán los cambios no guardados.')) return;
@@ -67,7 +77,9 @@ document.getElementById('newBtn').addEventListener('click', () => {
     resetOutput();
 });
 
-// abrir un archivo .golampi desde el disco
+/* ================================================================
+   ABRIR ARCHIVO
+   ================================================================ */
 document.getElementById('openBtn').addEventListener('click', () => {
     fileInput.click();
 });
@@ -85,16 +97,18 @@ fileInput.addEventListener('change', (e) => {
         resetOutput();
     };
     reader.readAsText(file);
-    // limpiar el input file para que pueda abrir el mismo archivo otra vez
+    // Limpiar input para poder abrir el mismo archivo de nuevo
     fileInput.value = '';
 });
 
-// guardar el código del editor como archivo de texto
+/* ================================================================
+   GUARDAR CÓDIGO
+   ================================================================ */
 document.getElementById('saveBtn').addEventListener('click', () => {
     saveFile(currentFile, editor.value, 'text/plain');
 });
 
-// permitir guardar con Ctrl+S y ejecutar con Ctrl+Enter
+// Atajo Ctrl+S
 document.addEventListener('keydown', (e) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 's') {
         e.preventDefault();
@@ -106,7 +120,9 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
-// ejecutar el análisis: léxico, sintáctico, semántico e interpretación
+/* ================================================================
+   EJECUTAR
+   ================================================================ */
 document.getElementById('runBtn').addEventListener('click', async () => {
     consoleOut.innerHTML  = '<span class="muted">Analizando…</span>';
     errorsOut.innerHTML   = '';
@@ -127,7 +143,7 @@ document.getElementById('runBtn').addEventListener('click', async () => {
 
         lastResult = await response.json();
 
-        // mostrar resultado de ejecución en la consola
+        /* ---- CONSOLA ---- */
         if (lastResult.success) {
             const out = lastResult.output || 'Sin salida';
             consoleOut.innerHTML =
@@ -141,22 +157,22 @@ document.getElementById('runBtn').addEventListener('click', async () => {
             switchTab('errors');
         }
 
-        // generar tabla de errores encontrados
+        /* ---- ERRORES ---- */
         renderErrors(lastResult.errors || []);
         const ne = (lastResult.errors || []).length;
         setReportStatus('errors', ne === 0 ? 'Sin errores ✓' : `${ne} error(es)`, ne === 0 ? 'ok' : 'err');
 
-        // mostrar tabla de símbolos (variables y funciones)
+        /* ---- SÍMBOLOS ---- */
         renderSymbols(lastResult.symbols || {});
         const ns = ((lastResult.symbols || {}).variables || []).length;
         setReportStatus('symbols', `${ns} símbolo(s)`, 'ok');
 
-        // mostrar imágenes generadas por Graphviz (AST, errores, símbolos)
+        /* ---- IMÁGENES ---- */
         updateCardImage('errors',  lastResult.img_errors,  'dl-errors',  'preview-errors');
         updateCardImage('symbols', lastResult.img_symbols, 'dl-symbols', 'preview-symbols');
         updateCardImage('ast',     lastResult.img_ast,     'dl-ast',     'preview-ast');
 
-        // permitir que el usuario descargue los reportes
+        /* ---- HABILITAR DESCARGAS ---- */
         disableDownloads(false);
 
     } catch (err) {
@@ -168,7 +184,9 @@ document.getElementById('runBtn').addEventListener('click', async () => {
     }
 });
 
-// limpiar el editor y los reportes
+/* ================================================================
+   LIMPIAR
+   ================================================================ */
 document.getElementById('clearBtn').addEventListener('click', () => { editor.value = ''; updateLineNumbers(); resetOutput(); });
 
 function resetOutput() {
@@ -184,7 +202,9 @@ function resetOutput() {
     disableDownloads(true);
 }
 
-// permitir descargar los reportes generados
+/* ================================================================
+   DESCARGAS
+   ================================================================ */
 document.getElementById('dl-output').addEventListener('click', () => {
     if (!lastResult) return;
     const content = lastResult.output || 'Sin salida';
@@ -214,7 +234,9 @@ document.getElementById('dl-ast').addEventListener('click', () => {
 });
 
 
-// mostrar una tabla con todos los errores encontrados
+/* ================================================================
+   RENDER: TABLA DE ERRORES
+   ================================================================ */
 function renderErrors(errors) {
     if (!errors || errors.length === 0) {
         errorsOut.innerHTML = '<p class="placeholder">No se han detectado errores.</p>';
@@ -249,7 +271,9 @@ function renderErrors(errors) {
     errorsOut.innerHTML = html;
 }
 
-// mostrar tabla con variables y funciones declaradas
+/* ================================================================
+   RENDER: TABLA DE SÍMBOLOS
+   ================================================================ */
 function renderSymbols(symbols) {
     if (!symbols || (!symbols.functions && !symbols.variables)) {
         symbolsOut.innerHTML = '<p class="placeholder">Sin símbolos.</p>';
@@ -314,7 +338,9 @@ function renderSymbols(symbols) {
     symbolsOut.innerHTML = html;
 }
 
-// funciones auxiliares para actualizar el estado de los reportes
+/* ================================================================
+   HELPERS DE REPORTES
+   ================================================================ */
 function setReportStatus(id, text, state) {
     const el = document.getElementById('status-' + id);
     if (!el) return;
@@ -341,8 +367,9 @@ function baseName() {
     return currentFile.replace(/\.[^.]+$/, '');
 }
 
-// funciones de utilidad que uso en varias partes del código
-function formatType(type) {
+/* ================================================================
+   HELPERS GENÉRICOS
+   ================================================================ */
 function saveFile(filename, content, mimeType) {
     const blob = new Blob([content], { type: mimeType });
     const url  = URL.createObjectURL(blob);
@@ -386,7 +413,7 @@ function updateCardImage(reportId, b64, dlBtnId, previewBtnId) {
     }
 }
 
-// Modal para mostrar imágenes generadas
+/* Modal de preview */
 function openPreview(b64, title) {
     if (!b64) return;
     const existing = document.getElementById('img-modal');
@@ -437,5 +464,4 @@ function formatValue(value, type) {
     if (typeof value === 'boolean') return value ? 'true' : 'false';
     if (typeof value === 'string' && type === 'string') return `"${value}"`;
     return String(value);
-}
 }

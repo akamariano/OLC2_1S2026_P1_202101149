@@ -7,102 +7,727 @@
 
 ## 1. Gramática Formal de Golampi (Archivo .g4)
 
-Golampi es un lenguaje de programación inspirado en Go, compilado mediante ANTLR4 (Another Tool for Language Recognition).
+Golampi es un lenguaje de programación inspirado en Go, compilado mediante ANTLR4 (Another Tool for Language Recognition). La gramática define la estructura sintáctica completa del lenguaje.
 
-### 1.1 Estructura General
+### 1.1 Estructura General del Programa
 
 ```
-programa
-  ├── declaración_función+
-  └── EOF
+program
+    : (functionDecl | varDecl | constDecl)+ EOF
+    ;
+```
+
+Un programa de Golampi consiste en una o más declaraciones de funciones, variables o constantes, seguidas del marcador de fin de archivo (EOF).
+
+**Ejemplo:**
+```go
+const PI float32 = 3.14159;
+
+var globalVar int32 = 10;
+
+func fibonacci(n int32) int32 {
+    if n <= 1 {
+        return n;
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+func main() {
+    // Código principal
+}
 ```
 
 ### 1.2 Declaraciones de Función
 
+#### Regla ANTLR
+
 ```
 functionDecl
-  ├── FUNC ID '(' paramList? ')' returnType? block
-  │
-  ├── paramList: param (',' param)*
-  │   └── param: ID [tipo | STAR tipo | array]
-  │
-  └── returnType: tipo | arrayType | STAR tipo | 
-                  '(' multiReturnType (',' multiReturnType)* ')'
+    : FUNC ID '(' paramList? ')' returnType? block
+    ;
+
+paramList
+    : param (',' param)*
+    ;
+
+param
+    : ID type               // Parámetro simple: a int32
+    | ID STAR type          // Puntero: a *int32
+    | ID STAR arrayType     // Puntero a array: a *[5]int32
+    | ID STAR sliceType     // Puntero a slice: a *[]int32
+    | ID arrayType          // Array: a [5]int32
+    | ID sliceType          // Slice: a []int32
+    ;
+
+returnType
+    : type
+    | arrayType
+    | sliceType
+    | STAR type
+    | STAR arrayType
+    | STAR sliceType
+    | '(' multiReturnType (',' multiReturnType)* ')'
+    ;
 ```
 
-### 1.3 Bloques y Declaraciones
+#### Ejemplos de Funciones
 
-Las funciones contienen bloques que pueden incluir:
+**Función simple sin retorno:**
+```go
+func saludar() {
+    println("Hola");
+}
+```
 
-**Variables y Constantes:**
-- `var ID tipo = expression?` - Declaración de variable
-- `var ID := expression` - Declaración implícita
-- `const ID tipo = expression` - Constante
+**Función con un parámetro:**
+```go
+func cuadrado(x int32) int32 {
+    return x * x;
+}
+```
 
-**Control de Flujo:**
-- `if expression block (else block)?` - Condicional
-- `for [init; condición; post] block` - Bucle determinado
-- `for expression block` - Bucle condicional
-- `for block` - Bucle infinito
-- `switch expression { case ... default? }` - Condicional múltiple
-- `break`, `continue`, `return [expresiones]`
+**Función con múltiples parámetros:**
+```go
+func suma(a int32, b int32) int32 {
+    return a + b;
+}
+```
 
-**Asignaciones:**
-- `ID = expression` - Asignación simple
-- `*ID = expression` - Desreferenciación
-- `ID[indice] = expression` - Índice de array
-- Operadores compuestos: `+=`, `-=`, `*=`, `/=`
+**Función con múltiples retornos:**
+```go
+func dividir(a float32, b float32) (float32, bool) {
+    if b == 0.0 {
+        return 0.0, false;
+    }
+    return a / b, true;
+}
+```
 
-### 1.4 Tipos de Datos
+**Función con parámetros de tipo puntero:**
+```go
+func incrementar(ptr *int32) {
+    *ptr = *ptr + 1;
+}
+```
+
+**Función con parámetros de array:**
+```go
+func sumarArray(arr [5]int32) int32 {
+    var suma int32 = 0;
+    // procesar array
+    return suma;
+}
+```
+
+### 1.3 Declaraciones de Variables y Constantes
+
+#### Variables
+
+**Regla ANTLR:**
+```
+varDecl
+    : VAR ID type ('=' expression)? ';'?
+    | VAR idList type '=' expList ';'?
+    | VAR ID arrayType ('=' arrayLiteral)? ';'?
+    | VAR ID STAR type ';'?
+    ;
+
+varShortDecl
+    : idList ':=' expList ';'?
+    | ID ':=' arrayLiteral ';'?
+    ;
+```
+
+**Ejemplos:**
+```go
+// Variable simple inicializada
+var x int32 = 10;
+
+// Variable sin inicializar (valor por defecto)
+var y int32;
+
+// Declaración corta con inferencia de tipo
+z := 42;
+
+// Múltiples variables
+var a, b, c int32 = 1, 2, 3;
+
+// Variable puntero
+var ptr *int32;
+
+// Array
+var arr [5]int32 = [5]int32{1, 2, 3, 4, 5};
+```
+
+#### Constantes
+
+**Regla ANTLR:**
+```
+constDecl
+    : CONST ID type '=' expression ';'?
+    ;
+```
+
+**Ejemplo:**
+```go
+const MAX_ITEMS int32 = 100;
+const PI float32 = 3.14159;
+const APP_NAME string = "Golampi";
+```
+
+### 1.4 Bloques de Código
+
+```
+block
+    : '{' statement* '}'
+    ;
+```
+
+Un bloque es una secuencia de statements entre llaves. Se utilizan en funciones, condicionales, bucles y otras construcciones de control de flujo.
+
+```go
+func ejemplo() {
+    // Inicio del bloque de la función
+    var x int32 = 5;
+    
+    if x > 0 {
+        // Bloque anidado del if
+        println("Positivo");
+    }
+    
+    // Fin del bloque de la función
+}
+```
+
+### 1.5 Statements (Declaraciones)
+
+Las estructuras que se pueden incluir dentro de un bloque:
+
+```
+statement
+    : varDecl
+    | varShortDecl
+    | constDecl
+    | ptrAssign           // Asignación a puntero
+    | arrayAssign         // Asignación a elemento de array
+    | assignment          // Asignación simple
+    | ifStmt
+    | forStmt
+    | switchStmt
+    | breakStmt
+    | continueStmt
+    | incDecStmt          // Incremento/Decremento
+    | returnStmt
+    | functionCall ';'?
+    | expression ';'?
+    ;
+```
+
+### 1.6 Control de Flujo
+
+#### Sentencia If-Else
+
+```
+ifStmt
+    : IF expression block (ELSE (ifStmt | block))?
+    ;
+```
+
+**Ejemplos:**
+```go
+// If simple
+if x > 0 {
+    println("Positivo");
+}
+
+// If-Else
+if x > 0 {
+    println("Positivo");
+} else {
+    println("No positivo");
+}
+
+// If-Else anidado (if-else if)
+if x > 0 {
+    println("Positivo");
+} else if x < 0 {
+    println("Negativo");
+} else {
+    println("Cero");
+}
+```
+
+#### Sentencia For
+
+```
+forStmt
+    : FOR forInit ';' expression ';' forPost block
+    | FOR expression block
+    | FOR block
+    ;
+
+forInit
+    : ID ':=' expression
+    | ID '=' expression
+    ;
+
+forPost
+    : ID '++'
+    | ID '--'
+    | ID '=' expression
+    ;
+```
+
+**Ejemplos:**
+```go
+// Bucle tradicional
+for i := 0; i < 10; i++ {
+    println(i);
+}
+
+// Bucle condicional (como while)
+var n int32 = 10;
+for n > 0 {
+    println(n);
+    n--;
+}
+
+// Bucle infinito
+for {
+    if condition {
+        break;
+    }
+}
+```
+
+#### Sentencia Switch
+
+```
+switchStmt
+    : SWITCH expression '{' caseClause* defaultClause? '}'
+    ;
+
+caseClause
+    : CASE expList ':' statement*
+    ;
+
+defaultClause
+    : DEFAULT ':' statement*
+    ;
+```
+
+**Ejemplo:**
+```go
+var dia int32 = 3;
+switch dia {
+    case 1, 2, 3:
+        println("Inicio de semana");
+    case 4, 5:
+        println("Mitad de semana");
+    case 6, 7:
+        println("Fin de semana");
+    default:
+        println("Día inválido");
+}
+```
+
+#### Break y Continue
+
+```
+breakStmt  : BREAK ';'?    ;
+continueStmt : CONTINUE ';'? ;
+```
+
+```go
+for i := 0; i < 10; i++ {
+    if i == 5 {
+        break;  // Sale del bucle
+    }
+    if i == 2 {
+        continue;  // Salta a siguiente iteración
+    }
+    println(i);
+}
+```
+
+#### Return
+
+```
+returnStmt
+    : RETURN expList? ';'?
+    ;
+```
+
+```go
+func obtenerValor() int32 {
+    return 42;
+}
+
+func dividir() (int32, bool) {
+    return 10, true;
+}
+
+func procedimiento() {
+    return;  // Sin valor de retorno
+}
+```
+
+### 1.7 Asignaciones
+
+```
+assignment
+    : ID assignOp expression ';'?
+    ;
+
+ptrAssign
+    : STAR ID assignOp expression ';'?
+    ;
+
+arrayAssign
+    : ID ('[' expression ']')+ assignOp expression ';'?
+    ;
+
+assignOp
+    : '='
+    | ADD_ASSIGN   // +=
+    | SUB_ASSIGN   // -=
+    | MUL_ASSIGN   // *=
+    | DIV_ASSIGN   // /=
+    ;
+
+incDecStmt
+    : ID '++'  ';'?
+    | ID '--'  ';'?
+    ;
+```
+
+**Ejemplos:**
+```go
+// Asignación simple
+x = 10;
+
+// Asignación con operadores compuestos
+x += 5;    // x = x + 5
+y -= 3;    // y = y - 3
+z *= 2;    // z = z * 2
+w /= 4;    // w = w / 4
+
+// Asignación a puntero
+*ptr = 20;
+
+// Asignación a elemento de array
+arr[2] = 15;
+
+// Incremento/Decremento
+i++;
+j--;
+```
+
+### 1.8 Tipos de Datos
 
 ```
 type
-  ├── int
-  ├── float
-  ├── string
-  ├── bool
-  └── rune (carácter Unicode)
+    : INT_TYPE       // 'int32'
+    | FLOAT_TYPE     // 'float32'
+    | STRING_TYPE    // 'string'
+    | BOOL_TYPE      // 'bool'
+    | RUNE_TYPE      // 'rune'
+    ;
+
+arrayType
+    : '[' INT ']' type
+    | '[' INT ']' arrayType
+    ;
+
+sliceType
+    : '[' ']' type
+    ;
 ```
 
-**Tipos Complejos:**
-- `[n]tipo` - Array de tamaño fijo n
-- `*tipo` - Puntero a tipo
-- `[n]*tipo` - Array de punteros
+#### Tipos Primitivos
 
-### 1.5 Expresiones
+| Tipo | Descripción | Ejemplo |
+|------|-------------|---------|
+| `int32` | Entero de 32 bits | `42` |
+| `float32` | Punto flotante de 32 bits | `3.14` |
+| `string` | Cadena de caracteres | `"Hola"` |
+| `bool` | Booleano | `true`, `false` |
+| `rune` | Carácter Unicode | `'A'` |
 
-Golampi utiliza un análisis de precedencia estándar:
+#### Tipos Complejos
 
-```
-expression (precedencia de menor a mayor)
-  ├── logicalOr: || (OR)
-  ├── logicalAnd: && (AND)
-  ├── equality: ==, !=
-  ├── comparison: <, <=, >, >=
-  ├── term: +, -
-  ├── factor: *, /, %
-  ├── unary: !, -, * (desref)
-  └── primary: (), functionCall, ID, números, strings
+**Arrays (Tamaño fijo):**
+```go
+var arr1 [5]int32;              // Array de 5 enteros
+var arr2 [3]string = [3]string{"a", "b", "c"};
+var matriz [2][3]int32;         // Array bidimensional
 ```
 
-### 1.6 Llamadas a Función
+**Punteros:**
+```go
+var x int32 = 10;
+var ptr *int32 = &x;            // Puntero a x
+*ptr = 20;                       // Desreferencia y asigna
+```
+
+**Arrays de Punteros:**
+```go
+var ptrArray [5]*int32;         // Array de 5 punteros a int32
+```
+
+### 1.9 Llamadas a Función
 
 ```
 functionCall
-  ├── qualifiedName '(' argList? ')'
-  │
-  └── argList: argItem (',' argItem)*
-      └── argItem: [&ID | expression]  (& indica referencia)
+    : qualifiedName '(' argList? ')'
+    ;
+
+qualifiedName
+    : ID ('.' ID)*
+    ;
+
+argList
+    : argItem (',' argItem)*
+    ;
+
+argItem
+    : REF ID      // & indica referencia/dirección
+    | expression
+    ;
 ```
 
-### 1.7 Palabras Clave Reservadas
+**Ejemplos:**
+```go
+// Llamada simple
+resultado = suma(5, 3);
 
-| Categoría | Palabras |
-|-----------|----------|
-| Estructura | `func`, `var`, `const` |
-| Control | `if`, `else`, `for`, `switch`, `case`, `default`, `break`, `continue`, `return` |
-| Valores | `true`, `false`, `nil` |
-| Tipos | `int`, `float`, `string`, `bool`, `rune` |
+// Llamada sin argumentos
+saludar();
+
+// Paso por referencia
+incrementar(&x);
+
+// Múltiples argumentos
+valor = funcionCompleja(a, b, &c, 42);
+
+// Resultado en variable
+var res int32 = cuadrado(5);
+```
+
+### 1.10 Expresiones y Operadores
+
+```
+expression
+    : logicalOr
+    ;
+
+logicalOr
+    : logicalAnd ( OR logicalAnd )*
+    ;
+
+logicalAnd
+    : equality ( AND equality )*
+    ;
+
+equality
+    : comparison ( ( EQ | NEQ ) comparison )*
+    ;
+
+comparison
+    : term ( ( GTE | LTE | GT | LT ) term )*
+    ;
+
+term
+    : factor ( ( PLUS | MINUS ) factor )*
+    ;
+
+factor
+    : unary ( ( STAR | SLASH | MOD ) unary )*
+    ;
+
+unary
+    : BANG unary
+    | MINUS unary
+    | STAR unary
+    | primary
+    ;
+
+primary
+    : '(' expression ')'
+    | functionCall
+    | arrayAccess
+    | ID
+    | INT
+    | FLOAT
+    | STRING
+    | RUNE
+    | TRUE
+    | FALSE
+    | NIL
+    ;
+```
+
+#### Tabla de Operadores (por precedencia)
+
+| Precedencia | Operador | Descripción | Tipo |
+|-------------|----------|-------------|------|
+| 1 (Menor) | `\|\|` | OR lógico | Binario |
+| 2 | `&&` | AND lógico | Binario |
+| 3 | `==`, `!=` | Igualdad/Desigualdad | Binario |
+| 4 | `<`, `<=`, `>`, `>=` | Comparación | Binario |
+| 5 | `+`, `-` | Suma, Resta | Binario |
+| 6 | `*`, `/`, `%` | Multiplicación, División, Módulo | Binario |
+| 7 (Mayor) | `!`, `-`, `*` | Negación, Negación aritmética, Desref | Unario |
+
+**Ejemplos:**
+```go
+// Expresiones aritméticas
+var a int32 = 10 + 5 * 2;      // 20 (multiplicación primero)
+var b int32 = (10 + 5) * 2;    // 30 (paréntesis tienen precedencia)
+
+// Expresiones lógicas
+if x > 5 && y < 10 {
+    // Ambas condiciones deben ser verdaderas
+}
+
+if x == 0 || y == 0 {
+    // Al menos una condición es verdadera
+}
+
+// Negación
+var invertido bool = !verdadero;
+
+// Acceso a arrays
+var elemento int32 = arr[i];
+
+// Desreferencia
+var valor int32 = *ptr;
+```
+
+### 1.11 Literales y Valores
+
+```
+primary
+    : INT          // Número entero: 42
+    | FLOAT        // Número flotante: 3.14
+    | STRING       // Cadena: "texto"
+    | RUNE         // Carácter: 'A'
+    | TRUE         // Valor booleano verdadero
+    | FALSE        // Valor booleano falso
+    | NIL          // Valor nulo/vacío
+    ;
+```
+
+**Ejemplos:**
+```go
+var edad int32 = 30;             // Literal entero
+var pi float32 = 3.14159;        // Literal flotante
+var nombre string = "Golampi";   // Literal string
+var inicial rune = 'G';          // Literal rune
+var esActivo bool = true;        // Literal booleano
+var vacio int32 = nil;           // Valor nil (no válido para todos los tipos)
+```
+
+### 1.12 Arrays y Literales de Array
+
+```
+arrayType
+    : '[' INT ']' type
+    | '[' INT ']' arrayType
+    ;
+
+arrayLiteral
+    : '[' INT ']' type '{' arrayElements? '}'
+    | '[' INT ']' arrayType '{' arrayRowElements? '}'
+    | '[' ']' type '{' arrayElements? '}'
+    ;
+
+arrayElements
+    : expression (',' expression)*
+    ;
+
+arrayAccess
+    : ID ('[' expression ']')+
+    ;
+```
+
+**Ejemplos:**
+```go
+// Array unidimensional
+var numeros [5]int32 = [5]int32{1, 2, 3, 4, 5};
+
+// Array sin inicialización
+var vacio [3]string;
+
+// Array bidimensional
+var matriz [2][3]int32 = [2][3]int32{
+    {1, 2, 3},
+    {4, 5, 6}
+};
+
+// Acceso a elementos
+var primero int32 = numeros[0];
+numeros[2] = 10;
+
+// Acceso a arrays multidimensionales
+var elemento int32 = matriz[0][1];
+```
+
+### 1.13 Palabras Clave Reservadas
+
+| Categoría | Palabras Clave |
+|-----------|---------|
+| **Estructura** | `func`, `var`, `const` |
+| **Control de Flujo** | `if`, `else`, `for`, `switch`, `case`, `default`, `break`, `continue`, `return` |
+| **Literales Booleanos** | `true`, `false` |
+| **Valor Nulo** | `nil` |
+| **Tipos de Dato** | `int32`, `float32`, `string`, `bool`, `rune` |
+
+### 1.14 Operadores Léxicos
+
+| Operador | Símbolo | Descripción |
+|----------|---------|-------------|
+| **Asignación** | `=` | Asignación simple |
+| **Asignación Compuesta** | `+=`, `-=`, `*=`, `/=` | Asignación con operación |
+| **Incremento/Decremento** | `++`, `--` | Incremento y decremento |
+| **Aritmética** | `+`, `-`, `*`, `/`, `%` | Suma, resta, multiplicación, división, módulo |
+| **Comparación** | `==`, `!=`, `<`, `<=`, `>`, `>=` | Igualdad, desigualdad, comparaciones |
+| **Lógica** | `&&`, `\|\|`, `!` | AND, OR, NOT |
+| **Puntero** | `*`, `&` | Desreferencia, referencia |
+| **Especiales** | `:=` | Declaración corta con asignación |
+
+### 1.15 Estructura de Tokens Léxicos (Orden en .g4)
+
+El orden de definición en la sección léxica es importante para evitar conflictos:
+
+```
+1. Operadores compuestos (antes que simples)
+   ADD_ASSIGN, SUB_ASSIGN, MUL_ASSIGN, DIV_ASSIGN
+   OR, AND, EQ, NEQ, GTE, LTE
+
+2. Palabras clave (deben estar antes de ID para tener prioridad)
+   func, var, const, if, else, for, switch, case, default,
+   break, continue, return, true, false, nil
+
+3. Tipos (deben estar antes de ID)
+   int32, float32, string, bool, rune
+
+4. Identificadores
+   ID : [\p{L}_] [\p{L}\p{N}_]*
+
+5. Números (FLOAT antes que INT)
+   FLOAT : [0-9]+ '.' [0-9]+
+   INT   : [0-9]+
+
+6. Strings y Runes
+   STRING, RUNE
+
+7. Comentarios (ignorados con skip)
+   LINE_COMMENT, BLOCK_COMMENT
+
+8. Espacios en blanco (ignorados con skip)
+   WS
+```
 
 ---
 

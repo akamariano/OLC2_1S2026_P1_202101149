@@ -11,8 +11,6 @@ use Antlr\Antlr4\Runtime\ParserRuleContext;
  *   $gen = new AstGenerator($parser);
  *   $dot = $gen->generate($tree);
  *
- * El string DOT resultante se puede renderizar con Graphviz o en
- * herramientas online como https://dreampuf.github.io/GraphvizOnline/
  */
 class AstGenerator
 {

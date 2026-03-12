@@ -22,7 +22,7 @@ class SemanticVisitor extends GolampiBaseVisitor
     public function getErrors(): array            { return $this->errors;      }
     public function hasErrors(): bool             { return count($this->errors) > 0; }
 
-    // acumular errores encontrados durante el análisis semántico
+    // registra errores encontrados durante el análisis semántico
     private function addError(string $msg, $ctx, string $type = 'Semántico'): void
     {
         $line   = 0;
@@ -45,7 +45,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         ];
     }
 
-    // funciones auxiliares para trabajar con tipos de datos
+    // funciones auxiliares para manipular tipos de datos
     private function arrayTypeToString($ctx): string
     {
         $size = $ctx->INT()->getText();
@@ -58,10 +58,10 @@ class SemanticVisitor extends GolampiBaseVisitor
     private function typesCompatible(string $a, string $b): bool
     {
         if ($a === $b) return true;
-        // Normalizar: quitar ptr: de ambos para comparar base
+        // normaliza tipos eliminando ptr: para comparar tipos base
         $aBase = strpos($a, 'ptr:') === 0 ? substr($a, 4) : $a;
         $bBase = strpos($b, 'ptr:') === 0 ? substr($b, 4) : $b;
-        // array[N]type es compatible con slice:type si el elemento coincide
+        // verifica compatibilidad entre array[N]type y slice:type
         $aElem = preg_replace('/^array\[\d+\]/', '', $aBase);
         $bElem = strpos($bBase, 'slice:') === 0 ? substr($bBase, 6) : $bBase;
         if ($aElem === $bElem) return true;
@@ -78,6 +78,7 @@ class SemanticVisitor extends GolampiBaseVisitor
 
     private function ptrBaseType(string $t): string { return substr($t, 4); }
 
+    // determina el tipo base de un parámetro según su declaración
     private function resolveParamType($paramCtx): string
     {
         $child1 = $paramCtx->getChild(1);
@@ -135,20 +136,20 @@ class SemanticVisitor extends GolampiBaseVisitor
         } catch (\Throwable $e) { return null; }
     }
 
-    // Nombre de ámbito actual para la tabla de símbolos
+    // retorna el nombre del ámbito actual para la tabla de símbolos
     private function scopeName(): string
     {
         return $this->symbolTable->currentScopeName();
     }
 
-    // procesar el programa completo: funciones y variables globales
+    // procesa el programa completo en tres fases
     public function visitProgram($ctx)
     {
-        // 1. registrar las firmas de todas las funciones (hoisting)
+        // registra las firmas de todas las funciones para hoisting semántico
         foreach ($ctx->functionDecl() as $func) {
             $this->registerFunctionSignature($func);
         }
-        // 2. procesar variables y constantes declaradas a nivel global
+        // procesa variables y constantes a nivel global
         $this->symbolTable->enterScope('global');
         foreach ($ctx->children as $child) {
             $class = get_class($child);
@@ -157,7 +158,7 @@ class SemanticVisitor extends GolampiBaseVisitor
                 $this->visit($child);
             }
         }
-        // 3. analizar el cuerpo de cada función
+        // analiza el cuerpo y validaciones de cada función
         foreach ($ctx->functionDecl() as $func) {
             $this->visitFunctionBody($func);
         }
@@ -165,7 +166,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         return null;
     }
 
-    // registrar y validar funciones declaradas en el programa
+    // registra y valida la firma de una función declarada
     private function registerFunctionSignature($ctx): void
     {
         $name        = $ctx->ID()->getText();
@@ -537,14 +538,14 @@ class SemanticVisitor extends GolampiBaseVisitor
             $this->addError("Identificador '$name' ya ha sido declarado en este ámbito.", $ctx);
             return null;
         }
-        $this->symbolTable->defineVariable($name, new VariableSymbol($name, $type, $line, $col, $scope));
+        $this->symbolTable->defineVariable($name, new VariableSymbol($name, $type, $line, $col, $scope, null, true));
         return null;
     }
 
-    // procesar literales de arreglos, acceso a elementos y asignaciones
+    // procesa literales de arreglos y valida tipos de elementos
     public function visitArrayLiteral($ctx): ?string
     {
-        // []type{e1, e2, ...} — slice sin tamaño explícito, tamaño inferido
+        // maneja slice sin tamaño explícito con inferencia de tamaño
         if ($ctx->INT() === null) {
             $elemType = $ctx->type()->getText();
             $elems    = $ctx->arrayElements() ? $ctx->arrayElements()->expression() : [];
@@ -625,7 +626,7 @@ class SemanticVisitor extends GolampiBaseVisitor
             return null;
         }
         $type = $symbol->getType();
-        // Desreferenciar puntero a arreglo o slice
+        // desreferencia punteros a arreglos o slices
         if (strpos($type, 'ptr:') === 0) {
             $type = substr($type, 4);
         }
@@ -658,7 +659,7 @@ class SemanticVisitor extends GolampiBaseVisitor
             return null;
         }
         $type      = $symbol->getType();
-        // Desreferenciar puntero a arreglo o slice
+        // desreferencia punteros a arreglos o slices
         if (strpos($type, 'ptr:') === 0) {
             $type = substr($type, 4);
         }
@@ -736,8 +737,13 @@ class SemanticVisitor extends GolampiBaseVisitor
             $this->addError("Uso de variable no declarada: '$name'.", $ctx);
             return null;
         }
+        // valida que no se asigne a una constante
+        if ($symbol->isConst()) {
+            $this->addError("No se puede modificar la constante '$name'.", $ctx);
+            return null;
+        }
         $varType  = $symbol->getType();
-        // Si la variable es un puntero, tratarla como su tipo base para asignación directa
+        // punteros se tratan como su tipo base para asignación directa
         $effectiveType = strpos($varType, 'ptr:') === 0 ? substr($varType, 4) : $varType;
         $exprType = $this->visit($ctx->expression());
         $op       = $ctx->assignOp()->getText();
@@ -765,7 +771,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         return null;
     }
 
-    // procesar sentencias de control: if, for, switch, break, continue
+    // procesa sentencias de control (if, for, switch, break, continue)
     public function visitIfStmt($ctx)
     {
         $condType = $this->visit($ctx->expression());
@@ -910,7 +916,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         return null;
     }
 
-    // validar sentencias return dentro de funciones
+    // valida que los returns sean correctos según la firma de la función
     public function visitReturnStmt($ctx)
     {
         if ($this->currentFunction === null) {
@@ -961,9 +967,10 @@ class SemanticVisitor extends GolampiBaseVisitor
         return null;
     }
 
-    // procesar expresiones y operaciones matemáticas/lógicas
+    // procesa expresiones aritméticas, lógicas y comparaciones
     public function visitExpression($ctx) { return $this->visit($ctx->logicalOr()); }
 
+    // valida operaciones lógicas OR con análisis de tipos
     public function visitLogicalOr($ctx)
     {
         $type = $this->visit($ctx->logicalAnd(0));
@@ -977,6 +984,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         return $type;
     }
 
+    // valida operaciones lógicas AND con análisis de tipos
     public function visitLogicalAnd($ctx)
     {
         $type = $this->visit($ctx->equality(0));
@@ -990,6 +998,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         return $type;
     }
 
+    // valida comparaciones de igualdad (==, !=)
     public function visitEquality($ctx)
     {
         $type = $this->visit($ctx->comparison(0));
@@ -1003,16 +1012,29 @@ class SemanticVisitor extends GolampiBaseVisitor
         return $type;
     }
 
+    // valida operaciones relacionales (<, >, <=, >=) entre tipos
     public function visitComparison($ctx)
     {
+        // tipos numéricos válidos: int32, float32, rune (alias de int32)
+        $numeric = ['int32', 'float32', 'rune'];
+
         $type = $this->visit($ctx->term(0));
         for ($i = 1; $i < count($ctx->term()); $i++) {
             $right = $this->visit($ctx->term($i));
             if ($type !== null && $right !== null) {
-                if ($type !== $right) {
-                    $this->addError("Operación relacional entre tipos distintos '$type' y '$right'.", $ctx);
-                } elseif (!in_array($type, ['int32', 'float32'])) {
-                    $this->addError("Operadores relacionales requieren int o float, se obtuvo '$type'.", $ctx);
+                // normaliza rune a int32 para compatibilidad en comparaciones
+                $effL = $type  === 'rune' ? 'int32' : $type;
+                $effR = $right === 'rune' ? 'int32' : $right;
+
+                if ($type === 'string' && $right === 'string') {
+                    // comparación de cadenas es válida
+                } elseif (in_array($type, $numeric) && in_array($right, $numeric)) {
+                    if ($effL !== $effR) {
+                        $this->addError("Operación relacional entre tipos distintos '$type' y '$right'.", $ctx);
+                    }
+                    // int32, float32, rune son válidos
+                } else {
+                    $this->addError("Operadores relacionales no válidos entre '$type' y '$right'.", $ctx);
                 }
             }
             $type = 'bool';
@@ -1020,31 +1042,40 @@ class SemanticVisitor extends GolampiBaseVisitor
         return $type;
     }
 
+    // valida operaciones aritméticas de suma y resta
     public function visitTerm($ctx)
     {
+        // tipos numéricos válidos: int32, float32, rune
+        $numeric = ['int32', 'float32', 'rune'];
+
         $type = $this->visit($ctx->factor(0));
-        // Desreferenciar puntero automáticamente (Golampi no requiere * explícito)
         if (strpos((string)$type, 'ptr:') === 0) $type = substr($type, 4);
         for ($i = 1; $i < count($ctx->factor()); $i++) {
             $right = $this->visit($ctx->factor($i));
             if (strpos((string)$right, 'ptr:') === 0) $right = substr($right, 4);
-            $op    = $ctx->getChild(($i * 2) - 1)->getText();
+            $op = $ctx->getChild(($i * 2) - 1)->getText();
             if ($type !== null && $right !== null) {
                 if ($op === '+') {
                     if ($type === 'string' && $right === 'string') {
-                        // ok
-                    } elseif (in_array($type, ['int32','float32']) && $type === $right) {
-                        // ok
-                    } elseif (in_array($type, ['int32','float32']) && in_array($right, ['int32','float32'])) {
-                        $type = 'float32';
+                        // concatenación de cadenas
+                    } elseif (in_array($type, $numeric) && in_array($right, $numeric)) {
+                        // suma numérica con promoción de tipos si es necesario
+                        if ($type === 'float32' || $right === 'float32') {
+                            $type = 'float32';
+                        } else {
+                            $type = 'int32';
+                        }
                     } else {
                         $this->addError("Operación '+' inválida entre '$type' y '$right'.", $ctx);
                     }
                 } else {
-                    if (!in_array($type, ['int32','float32']) || !in_array($right, ['int32','float32'])) {
+                    // resta: solo para tipos numéricos
+                    if (!in_array($type, $numeric) || !in_array($right, $numeric)) {
                         $this->addError("Operación '-' inválida entre '$type' y '$right'.", $ctx);
-                    } elseif ($type !== $right) {
+                    } elseif ($type === 'float32' || $right === 'float32') {
                         $type = 'float32';
+                    } else {
+                        $type = 'int32';
                     }
                 }
             }
@@ -1052,24 +1083,49 @@ class SemanticVisitor extends GolampiBaseVisitor
         return $type;
     }
 
+    // valida operaciones aritméticas de multiplicación, división y módulo
     public function visitFactor($ctx)
     {
+        // tipos numéricos válidos: int32, float32, rune
+        $numeric = ['int32', 'float32', 'rune'];
+
         $type = $this->visit($ctx->unary(0));
         if (strpos((string)$type, 'ptr:') === 0) $type = substr($type, 4);
         for ($i = 1; $i < count($ctx->unary()); $i++) {
             $right = $this->visit($ctx->unary($i));
             if (strpos((string)$right, 'ptr:') === 0) $right = substr($right, 4);
-            $op    = $ctx->getChild(($i * 2) - 1)->getText();
+            $op = $ctx->getChild(($i * 2) - 1)->getText();
             if ($type !== null && $right !== null) {
                 if ($op === '%') {
-                    if ($type !== 'int32' || $right !== 'int32') {
-                        $this->addError("Operación '%' inválida entre '$type' y '$right': se requiere int.", $ctx);
+                    // módulo solo para enteros
+                    $ok = (in_array($type, ['int32','rune']) && in_array($right, ['int32','rune']));
+                    if (!$ok) {
+                        $this->addError("Operación '%' inválida entre '$type' y '$right': se requiere int o rune.", $ctx);
+                    } else {
+                        $type = 'int32';
+                    }
+                } elseif ($op === '*') {
+                    // multiplicación incluyendo repetición de cadena (int*string)
+                    if (($type === 'int32' && $right === 'string') ||
+                        ($type === 'string' && $right === 'int32')) {
+                        $type = 'string';
+                    } elseif (in_array($type, $numeric) && in_array($right, $numeric)) {
+                        if ($type === 'float32' || $right === 'float32') {
+                            $type = 'float32';
+                        } else {
+                            $type = 'int32';
+                        }
+                    } else {
+                        $this->addError("Operación '*' inválida entre '$type' y '$right'.", $ctx);
                     }
                 } else {
-                    if (!in_array($type, ['int32','float32']) || !in_array($right, ['int32','float32'])) {
+                    // división con promoción de tipos si uno es float
+                    if (!in_array($type, $numeric) || !in_array($right, $numeric)) {
                         $this->addError("Operación '$op' inválida entre '$type' y '$right'.", $ctx);
-                    } elseif ($type !== $right) {
+                    } elseif ($type === 'float32' || $right === 'float32') {
                         $type = 'float32';
+                    } else {
+                        $type = 'int32';
                     }
                 }
             }
