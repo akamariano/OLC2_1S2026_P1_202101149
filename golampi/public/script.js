@@ -124,11 +124,11 @@ document.addEventListener('keydown', (e) => {
    EJECUTAR
    ================================================================ */
 document.getElementById('runBtn').addEventListener('click', async () => {
-    consoleOut.innerHTML  = '<span class="muted">Analizando…</span>';
+    consoleOut.innerHTML  = '<span class="muted">Compilando…</span>';
     errorsOut.innerHTML   = '';
     symbolsOut.innerHTML  = '';
     errorBadge.classList.add('hidden');
-    setReportStatus('output',  'Ejecutando…', 'running');
+    setReportStatus('arm64',   'Compilando…', 'running');
     setReportStatus('errors',  'Analizando…', 'running');
     setReportStatus('symbols', 'Analizando…', 'running');
     setReportStatus('ast',     'Generando…',  'running');
@@ -143,17 +143,18 @@ document.getElementById('runBtn').addEventListener('click', async () => {
 
         lastResult = await response.json();
 
-        /* ---- CONSOLA ---- */
-        if (lastResult.success) {
-            const out = lastResult.output || 'Sin salida';
+        /* ---- CONSOLA: código ARM64 generado ---- */
+        if (lastResult.success && lastResult.arm64_code) {
+            const lineCount = lastResult.arm64_code.split('\n').length;
             consoleOut.innerHTML =
-                '<span class="success">✓ Análisis exitoso</span>\n\n' +
-                escHtml(out);
-            setReportStatus('output', `${out.split('\n').filter(Boolean).length} líneas`, 'ok');
+                '<span class="success">✓ Código ARM64 generado correctamente</span>\n\n' +
+                '<pre class="asm-code">' + escHtml(lastResult.arm64_code) + '</pre>';
+            setReportStatus('arm64', `${lineCount} líneas generadas`, 'ok');
+            document.getElementById('dl-arm64').disabled = false;
         } else {
             consoleOut.innerHTML =
-                '<span class="error">✗ Se encontraron errores. Revisa la pestaña Errores.</span>';
-            setReportStatus('output', 'Sin ejecución', 'none');
+                '<span class="error">✗ Compilación fallida. Revisa la pestaña Errores.</span>';
+            setReportStatus('arm64', 'Sin código', 'none');
             switchTab('errors');
         }
 
@@ -172,12 +173,15 @@ document.getElementById('runBtn').addEventListener('click', async () => {
         updateCardImage('symbols', lastResult.img_symbols, 'dl-symbols', 'preview-symbols');
         updateCardImage('ast',     lastResult.img_ast,     'dl-ast',     'preview-ast');
 
-        /* ---- HABILITAR DESCARGAS ---- */
-        disableDownloads(false);
+        /* ---- HABILITAR OTRAS DESCARGAS ---- */
+        ['dl-errors','dl-symbols','dl-ast','preview-errors','preview-symbols','preview-ast'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.disabled = false;
+        });
 
     } catch (err) {
         consoleOut.innerHTML = `<span class="error">Error de conexión: ${err.message}</span>`;
-        setReportStatus('output',  'Error', 'err');
+        setReportStatus('arm64',   'Error', 'err');
         setReportStatus('errors',  'Error', 'err');
         setReportStatus('symbols', 'Error', 'err');
         setReportStatus('ast',     'Error', 'err');
@@ -193,22 +197,21 @@ function resetOutput() {
     lastResult = null;
     consoleOut.innerHTML  = 'Listo.';
     errorsOut.innerHTML   = '<p class="placeholder">No se han detectado errores.</p>';
-    symbolsOut.innerHTML  = '<p class="placeholder">Ejecuta el código para ver la tabla de símbolos.</p>';
+    symbolsOut.innerHTML  = '<p class="placeholder">Compila el código para ver la tabla de símbolos.</p>';
     errorBadge.classList.add('hidden');
-    setReportStatus('output',  'Sin ejecutar', 'none');
-    setReportStatus('errors',  'Sin ejecutar', 'none');
-    setReportStatus('symbols', 'Sin ejecutar', 'none');
-    setReportStatus('ast',     'Sin ejecutar', 'none');
+    setReportStatus('arm64',   'Sin compilar', 'none');
+    setReportStatus('errors',  'Sin compilar', 'none');
+    setReportStatus('symbols', 'Sin compilar', 'none');
+    setReportStatus('ast',     'Sin compilar', 'none');
     disableDownloads(true);
 }
 
 /* ================================================================
    DESCARGAS
    ================================================================ */
-document.getElementById('dl-output').addEventListener('click', () => {
-    if (!lastResult) return;
-    const content = lastResult.output || 'Sin salida';
-    saveFile(baseName() + '_output.txt', content, 'text/plain');
+document.getElementById('dl-arm64').addEventListener('click', () => {
+    if (!lastResult?.arm64_code) return;
+    saveFile(baseName() + '.s', lastResult.arm64_code, 'text/plain');
 });
 
 document.getElementById('preview-errors').addEventListener('click', () =>
@@ -349,7 +352,7 @@ function setReportStatus(id, text, state) {
 }
 
 function disableDownloads(disabled) {
-    ['dl-output','dl-errors','dl-symbols','dl-ast',
+    ['dl-arm64','dl-errors','dl-symbols','dl-ast',
      'preview-errors','preview-symbols','preview-ast'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.disabled = disabled;

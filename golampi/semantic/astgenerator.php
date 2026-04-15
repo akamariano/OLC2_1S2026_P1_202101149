@@ -4,14 +4,7 @@ use Antlr\Antlr4\Runtime\Tree\TerminalNode;
 use Antlr\Antlr4\Runtime\Tree\ErrorNode;
 use Antlr\Antlr4\Runtime\ParserRuleContext;
 
-/**
- * Genera un grafo DOT (Graphviz) a partir del árbol sintáctico de ANTLR4.
- *
- * Uso:
- *   $gen = new AstGenerator($parser);
- *   $dot = $gen->generate($tree);
- *
- */
+// genera un grafo DOT (Graphviz) a partir del árbol sintáctico de ANTLR4
 class AstGenerator
 {
     private array  $nodes    = [];  // id => label

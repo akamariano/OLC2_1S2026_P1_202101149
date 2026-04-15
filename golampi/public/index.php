@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Golampi Interpreter</title>
+    <title>Golampi Compiler</title>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -14,7 +14,7 @@
 
     <header>
         <div class="header-left">
-            <h1>Golampi</h1>
+            <h1>Golampi Compiler</h1>
             <span id="fileName" class="file-name">sin_titulo.golampi</span>
         </div>
         <div class="toolbar">
@@ -31,11 +31,11 @@
                 Guardar
             </button>
             <div class="toolbar-sep"></div>
-            <button class="tool-btn primary" id="runBtn" title="Ejecutar (Ctrl+Enter)">
-                <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21"/></svg>
-                Ejecutar
+            <button class="tool-btn primary" id="runBtn" title="Compilar (Ctrl+Enter)">
+                <svg viewBox="0 0 24 24"><polyline points="16,18 22,12 16,6"/><polyline points="8,6 2,12 8,18"/></svg>
+                Compilar
             </button>
-            <button class="tool-btn danger" id="clearBtn" title="Limpiar salida">
+            <button class="tool-btn danger" id="clearBtn" title="Limpiar consola">
                 <svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                 Limpiar
             </button>
@@ -84,9 +84,10 @@
                 </button>
             </div>
 
-            <!-- CONSOLA -->
+            <!-- CONSOLA ARM64 -->
             <div id="tab-console" class="tab-content active">
-                <div id="consoleOutput">Listo.</div>
+                <div class="console-header">Consola — Código ARM64 Generado</div>
+                <div id="consoleOutput" class="asm-output">Listo.</div>
             </div>
 
             <!-- ERRORES -->
@@ -109,19 +110,19 @@
 
                     <div class="reports-grid">
 
-                        <!-- OUTPUT -->
-                        <div class="report-card" id="card-output">
-                            <div class="report-card-icon output-icon">
-                                <svg viewBox="0 0 24 24"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+                        <!-- ARM64 -->
+                        <div class="report-card" id="card-arm64">
+                            <div class="report-card-icon arm64-icon">
+                                <svg viewBox="0 0 24 24"><polyline points="16,18 22,12 16,6"/><polyline points="8,6 2,12 8,18"/></svg>
                             </div>
                             <div class="report-card-info">
-                                <h3>Resultado de Ejecución</h3>
-                                <p>Salida del programa en consola</p>
-                                <span class="report-status" id="status-output">Sin ejecutar</span>
+                                <h3>Código ARM64</h3>
+                                <p>Ensamblador AArch64 generado por el compilador</p>
+                                <span class="report-status" id="status-arm64">Sin compilar</span>
                             </div>
-                            <button class="download-btn" id="dl-output" disabled>
+                            <button class="download-btn" id="dl-arm64" disabled>
                                 <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7,10 12,15 17,10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                                Descargar .txt
+                                Descargar .s
                             </button>
                         </div>
 

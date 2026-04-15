@@ -295,6 +295,54 @@ class SemanticVisitor extends GolampiBaseVisitor
             }
             return 'string';
         }
+        if ($name==='toUpper'){
+            $args = $ctx->argList() ? $ctx->argList()->argItem() : [];
+            if (count($args) !== 1) {
+                $this->addError("toUpper() requiere 1 argumento.", $ctx);
+            } else {
+                $t = $this->visit($args[0]->expression());
+                if ($t !== 'string') {
+                    $this->addError("toUpper() requiere un string, se obtuvo '$t'.", $ctx);
+                }
+            }
+            return 'string';
+        }
+        if ($name==='toLower'){
+            $args = $ctx->argList() ? $ctx->argList()->argItem() : [];
+            if (count($args) !== 1) {
+                $this->addError("toLower() requiere 1 argumento.", $ctx);
+            } else {
+                $t = $this->visit($args[0]->expression());
+                if ($t !== 'string') {
+                    $this->addError("toLower() requiere un string, se obtuvo '$t'.", $ctx);
+                }
+            }
+            return 'string';
+        }
+        if ($name==='toInt'){
+             $args = $ctx->argList() ? $ctx->argList()->argItem() : [];
+            if (count($args) !== 1) {
+                $this->addError("toInt() requiere 1 argumento.", $ctx);
+            } else {
+                $t = $this->visit($args[0]->expression());
+                if ($t !== 'string' && $t !== 'float32' && $t !== 'rune') {
+                    $this->addError("toInt() requiere un string numérico, rune ó float32, se obtuvo '$t'.", $ctx);
+                }
+            }
+            return 'int32';
+        }
+        if($name === 'sqrt'){
+            $args = $ctx->argList() ? $ctx->argList()->argItem() : [];
+            if (count($args) !== 1) {
+                $this->addError("sqrt() requiere 1 argumento.", $ctx);
+            } else {
+                $t = $this->visit($args[0]->expression());
+                if ($t !== 'int32' && $t !== 'float32' && $t !== 'float64') {
+                    $this->addError("sqrt() requiere un número, se obtuvo '$t'.", $ctx);
+                }
+            }
+            return 'float64';
+        }
 
         $function = $this->symbolTable->getFunction($name);
         if (!$function) {

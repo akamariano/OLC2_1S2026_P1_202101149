@@ -3,21 +3,12 @@
 use Antlr\Antlr4\Runtime\Tree\TerminalNode;
 use Antlr\Antlr4\Runtime\Tree\ErrorNode;
 
-/**
- * Genera imágenes JPG (base64) usando Graphviz para:
- *   - AST del árbol sintáctico
- *   - Tabla de errores
- *   - Tabla de símbolos
- */
+// Genera imágenes JPG en base64 con Graphviz para el AST, tabla de errores y tabla de símbolos.
 class ReportGenerator
 {
     private const DOT_BIN = '/usr/bin/dot';
 
-    // métodos públicos que generan reportes como imágenes JPG
-    /**
-     * AST: recorre el árbol ANTLR y genera un grafo dirigido.
-     * Devuelve base64 JPG.
-     */
+    // recorre el árbol ANTLR, genera un grafo dirigido y devuelve base64 JPG
     public static function astJpg($tree, $parser): string
     {
         $gen = new self();
@@ -25,9 +16,7 @@ class ReportGenerator
         return self::dotToJpg($dot);
     }
 
-    /**
-     * Tabla de errores como imagen JPG.
-     */
+    // tabla de errores como imagen JPG
     public static function errorsJpg(array $errors): string
     {
         $dot = self::buildTableDot(
@@ -46,9 +35,7 @@ class ReportGenerator
         return self::dotToJpg($dot);
     }
 
-    /**
-     * Tabla de símbolos como imagen JPG.
-     */
+    // tabla de símbolos como imagen JPG
     public static function symbolsJpg(array $symbols): string
     {
         $rows = [];

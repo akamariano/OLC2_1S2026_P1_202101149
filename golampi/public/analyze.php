@@ -17,8 +17,8 @@ require_once __DIR__ . '/../semantic/VariableSymbol.php';
 require_once __DIR__ . '/../semantic/FunctionSymbol.php';
 require_once __DIR__ . '/../semantic/SemanticVisitor.php';
 
-// incluir la clase ejecutora (intérprete)
-require_once __DIR__ . '/../interpreter/Executor.php';
+// incluir el generador de código ARM64 (compilador)
+require_once __DIR__ . '/../compiler/ARM64Generator.php';
 
 // incluir generador de reportes
 require_once __DIR__ . '/../semantic/Reportgenerator.php';
@@ -27,9 +27,7 @@ use Antlr\Antlr4\Runtime\InputStream;
 use Antlr\Antlr4\Runtime\CommonTokenStream;
 use Antlr\Antlr4\Runtime\Error\Listeners\BaseErrorListener;
 
-/**
- * clase que recopila errores del analizador léxico y sintáctico
- */
+// clase que recopila errores del analizador léxico y sintáctico
 class GolampiErrorListener extends BaseErrorListener
 {
     private array $errors = [];
@@ -96,7 +94,7 @@ $data = json_decode(file_get_contents("php://input"), true);
 $code = $data["code"] ?? "";
 
 $allErrors     = [];
-$output        = '';
+$arm64Code     = '';   // código ensamblador ARM64 generado
 $symbolsReport = [];
 $imgAst        = '';
 $imgErrors     = '';
@@ -146,11 +144,20 @@ try {
     $allErrors     = array_merge($allErrors, $semantic->getErrors());
     $symbolsReport = $semantic->getSymbolTable()->toArray();
 
-    // ejecutar el programa solo si no hay errores
+    // generar código ARM64 solo si no hay errores semánticos/sintácticos
     if (empty($allErrors)) {
-        $executor = new \Interpreter\Executor();
-        $executor->visit($tree);
-        $output = $executor->getOutput();
+        try {
+            $generator = new \Compiler\ARM64Generator();
+            $generator->visit($tree);
+            $arm64Code = $generator->getAssembly();
+        } catch (\Throwable $e) {
+            $allErrors[] = [
+                'type'        => 'Generación',
+                'description' => 'Error al generar código ARM64: ' . $e->getMessage(),
+                'line'        => 0,
+                'column'      => 0,
+            ];
+        }
     }
 
 } catch (\Throwable $e) {
@@ -174,7 +181,7 @@ try {
 // enviar la respuesta en formato JSON
 echo json_encode([
     'success'     => empty($allErrors),
-    'output'      => $output,
+    'arm64_code'  => $arm64Code,
     'errors'      => $allErrors,
     'symbols'     => $symbolsReport,
     'img_ast'     => $imgAst,

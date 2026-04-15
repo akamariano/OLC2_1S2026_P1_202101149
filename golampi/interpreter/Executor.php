@@ -154,7 +154,26 @@ class Executor extends \GolampiBaseVisitor {
             }
             return 'nil';
         }
-
+        if ($name==='toUpper'){
+            $arg = $this->visit($ctx->argList()->argItem(0)->expression());
+            if (is_string($arg)) return strtoupper($arg);
+            throw new Exception("toUpper() requiere un string.");
+        }
+        if ($name==='toLower'){
+            $arg = $this->visit($ctx->argList()->argItem(0)->expression());
+            if (is_string($arg)) return strtolower($arg);
+            throw new Exception("toLower() requiere un string.");
+        }
+        if ($name==='toInt'){
+            $arg = $this->visit($ctx->argList()->argItem(0)->expression());
+            if (is_string($arg) && is_numeric($arg)) return (int)$arg;
+            throw new Exception("toInt() requiere un string numérico.");
+        }
+        if ($name === 'sqrt'){
+            $arg = $this->visit($ctx->argList()->argItem(0)->expression());
+            if (is_numeric($arg)) return sqrt($arg);
+            throw new Exception("sqrt() requiere un número.");
+        }
         // ---- Funciones de usuario ----
         $args = [];
         if ($ctx->argList()) {
@@ -316,10 +335,7 @@ class Executor extends \GolampiBaseVisitor {
     }
 
     // funciones auxiliares para administrar arreglos
-    /**
-     * Crea un arreglo con valores por defecto según el tipo especificado
-     * Soporta arreglos multidimensionales
-     */
+    // crea un arreglo con valores por defecto según el tipo, soporta multidimensionales
     private function makeDefaultArray($arrayTypeCtx): array {
         $size = (int)$arrayTypeCtx->INT()->getText();
         $arr  = [];
