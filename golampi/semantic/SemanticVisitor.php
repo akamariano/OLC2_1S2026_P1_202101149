@@ -237,9 +237,7 @@ class SemanticVisitor extends GolampiBaseVisitor
 
     public function visitFunctionDecl($ctx) { return null; }
 
-    // ----------------------------------------------------------------
-    // FUNCTION CALL
-    // ----------------------------------------------------------------
+    // verificación semántica de llamadas a función
     public function visitFunctionCall($ctx)
     {
         $name = $ctx->qualifiedName()->getText();
