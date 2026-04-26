@@ -35,6 +35,10 @@
                 <svg viewBox="0 0 24 24"><polyline points="16,18 22,12 16,6"/><polyline points="8,6 2,12 8,18"/></svg>
                 Compilar
             </button>
+            <button class="tool-btn execute" id="execBtn" title="Ejecutar programa compilado (Ctrl+Shift+Enter)" disabled>
+                <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21 5,3"/></svg>
+                Ejecutar
+            </button>
             <button class="tool-btn danger" id="clearBtn" title="Limpiar consola">
                 <svg viewBox="0 0 24 24"><polyline points="3,6 5,6 21,6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>
                 Limpiar
@@ -69,6 +73,10 @@
                     <svg viewBox="0 0 24 24"><polyline points="4,17 10,11 4,5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
                     Consola
                 </button>
+                <button class="tab" data-tab="salida">
+                    <svg viewBox="0 0 24 24"><polygon points="5,3 19,12 5,21 5,3"/></svg>
+                    Salida
+                </button>
                 <button class="tab" data-tab="errors">
                     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                     Errores
@@ -88,6 +96,12 @@
             <div id="tab-console" class="tab-content active">
                 <div class="console-header">Consola — Código ARM64 Generado</div>
                 <div id="consoleOutput" class="asm-output">Listo.</div>
+            </div>
+
+            <!-- SALIDA DE EJECUCIÓN -->
+            <div id="tab-salida" class="tab-content">
+                <div class="console-header">Salida — Resultado de la Ejecución</div>
+                <div id="salidaOutput" class="run-output">Compila y luego presiona Ejecutar.</div>
             </div>
 
             <!-- ERRORES -->

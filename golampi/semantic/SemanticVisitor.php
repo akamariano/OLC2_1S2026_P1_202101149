@@ -22,6 +22,10 @@ class SemanticVisitor extends GolampiBaseVisitor
     public function getErrors(): array            { return $this->errors;      }
     public function hasErrors(): bool             { return count($this->errors) > 0; }
 
+    // rune es alias de int32 — normaliza para comparaciones de tipo
+    private function normType(string $t): string { return $t === 'rune' ? 'int32' : $t; }
+    private function typesCompat(string $a, string $b): bool { return $this->normType($a) === $this->normType($b); }
+
     // registra errores encontrados durante el análisis semántico
     private function addError(string $msg, $ctx, string $type = 'Semántico'): void
     {
@@ -414,7 +418,7 @@ class SemanticVisitor extends GolampiBaseVisitor
                 $name = $idNode->getText();
                 if (isset($exprs[$i])) {
                     $exprType = $this->visit($exprs[$i]);
-                    if ($exprType !== null && $exprType !== $type) {
+                    if ($exprType !== null && !$this->typesCompat($exprType, $type)) {
                         $this->addError(
                             "Incompatibilidad de tipos en '$name': se esperaba '$type', se obtuvo '$exprType'.",
                             $ctx
@@ -474,7 +478,7 @@ class SemanticVisitor extends GolampiBaseVisitor
 
         if ($ctx->expression()) {
             $exprType = $this->visit($ctx->expression());
-            if ($exprType !== null && $exprType !== $type) {
+            if ($exprType !== null && !$this->typesCompat($exprType, $type)) {
                 $this->addError(
                     "Incompatibilidad de tipos en '$name': se esperaba '$type', se obtuvo '$exprType'.",
                     $ctx
@@ -574,7 +578,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         $type  = $ctx->type()->getText();
 
         $exprType = $this->visit($ctx->expression());
-        if ($exprType !== null && $exprType !== $type) {
+        if ($exprType !== null && !$this->typesCompat($exprType, $type)) {
             $this->addError(
                 "Incompatibilidad de tipos en const '$name': se esperaba '$type', se obtuvo '$exprType'.",
                 $ctx
@@ -763,7 +767,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         $exprType  = $this->visit($ctx->expression());
         $op        = $ctx->assignOp()->getText();
 
-        if ($exprType !== null && $baseType !== $exprType) {
+        if ($exprType !== null && !$this->typesCompat($baseType, $exprType)) {
             $this->addError(
                 "Incompatibilidad de tipos en asignación por puntero '*$name': se esperaba '$baseType', se obtuvo '$exprType'.",
                 $ctx
@@ -795,22 +799,24 @@ class SemanticVisitor extends GolampiBaseVisitor
         $op       = $ctx->assignOp()->getText();
 
         if ($op === '=') {
-            if ($exprType !== null && $effectiveType !== $exprType) {
+            if ($exprType !== null && !$this->typesCompat($effectiveType, $exprType)) {
                 $this->addError(
                     "Incompatibilidad de tipos en asignación a '$name': se esperaba '$varType', se obtuvo '$exprType'.",
                     $ctx
                 );
             }
         } elseif ($op === '+=') {
-            if (!in_array($effectiveType, ['int32', 'float32', 'string'])) {
+            $effNorm = $this->normType($effectiveType);
+            if (!in_array($effNorm, ['int32', 'float32', 'string'])) {
                 $this->addError("Operador '+=' no válido para tipo '$varType'.", $ctx);
-            } elseif ($exprType !== null && $effectiveType !== $exprType) {
+            } elseif ($exprType !== null && !$this->typesCompat($effectiveType, $exprType)) {
                 $this->addError("Incompatibilidad de tipos en '+=' sobre '$name'.", $ctx);
             }
         } else {
-            if (!in_array($effectiveType, ['int32', 'float32'])) {
+            $effNorm = $this->normType($effectiveType);
+            if (!in_array($effNorm, ['int32', 'float32'])) {
                 $this->addError("Operador '$op' solo válido para int o float.", $ctx);
-            } elseif ($exprType !== null && $effectiveType !== $exprType) {
+            } elseif ($exprType !== null && !$this->typesCompat($effectiveType, $exprType)) {
                 $this->addError("Incompatibilidad de tipos en '$op' sobre '$name'.", $ctx);
             }
         }
@@ -879,7 +885,7 @@ class SemanticVisitor extends GolampiBaseVisitor
             $sym = $this->symbolTable->resolveVariable($id);
             if (!$sym) {
                 $this->addError("Uso de variable no declarada: '$id'.", $ctx);
-            } elseif ($exprType !== null && $sym->getType() !== $exprType) {
+            } elseif ($exprType !== null && !$this->typesCompat($sym->getType(), $exprType)) {
                 $this->addError("Incompatibilidad de tipos en forInit.", $ctx);
             }
         }
@@ -900,7 +906,7 @@ class SemanticVisitor extends GolampiBaseVisitor
             }
         } else {
             $exprType = $this->visit($ctx->expression());
-            if ($exprType !== null && $sym->getType() !== $exprType) {
+            if ($exprType !== null && !$this->typesCompat($sym->getType(), $exprType)) {
                 $this->addError("Incompatibilidad de tipos en forPost.", $ctx);
             }
         }
@@ -1001,7 +1007,7 @@ class SemanticVisitor extends GolampiBaseVisitor
 
         foreach ($exprs as $i => $expr) {
             $exprType = $this->visit($expr);
-            if ($exprType !== null && $exprType !== $expectedTypes[$i]) {
+            if ($exprType !== null && !$this->typesCompat($exprType, $expectedTypes[$i])) {
                 $this->addError(
                     "Return de '$funcName' valor " . ($i + 1) .
                     ": se esperaba {$expectedTypes[$i]}, se obtuvo $exprType.",

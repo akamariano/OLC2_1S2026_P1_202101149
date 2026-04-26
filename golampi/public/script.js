@@ -10,6 +10,7 @@ let currentFile = 'sin_titulo.golampi';
 const editor      = document.getElementById('codeEditor');
 const lineNumbers = document.getElementById('lineNumbers');
 const consoleOut  = document.getElementById('consoleOutput');
+const salidaOut   = document.getElementById('salidaOutput');
 const errorsOut   = document.getElementById('errorsOutput');
 const symbolsOut  = document.getElementById('symbolsOutput');
 const errorBadge  = document.getElementById('errorBadge');
@@ -17,6 +18,7 @@ const fileNameEl  = document.getElementById('fileName');
 const editorLabel = document.getElementById('editorLabel');
 const cursorPos   = document.getElementById('cursorPos');
 const fileInput   = document.getElementById('fileInput');
+const execBtn     = document.getElementById('execBtn');
 
 /* ================================================================
    POSICIÓN DEL CURSOR EN EL EDITOR
@@ -114,9 +116,13 @@ document.addEventListener('keydown', (e) => {
         e.preventDefault();
         saveFile(currentFile, editor.value, 'text/plain');
     }
-    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         document.getElementById('runBtn').click();
+    }
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'Enter') {
+        e.preventDefault();
+        if (!execBtn.disabled) execBtn.click();
     }
 });
 
@@ -151,10 +157,12 @@ document.getElementById('runBtn').addEventListener('click', async () => {
                 '<pre class="asm-code">' + escHtml(lastResult.arm64_code) + '</pre>';
             setReportStatus('arm64', `${lineCount} líneas generadas`, 'ok');
             document.getElementById('dl-arm64').disabled = false;
+            execBtn.disabled = false;
         } else {
             consoleOut.innerHTML =
                 '<span class="error">✗ Compilación fallida. Revisa la pestaña Errores.</span>';
             setReportStatus('arm64', 'Sin código', 'none');
+            execBtn.disabled = true;
             switchTab('errors');
         }
 
@@ -189,6 +197,64 @@ document.getElementById('runBtn').addEventListener('click', async () => {
 });
 
 /* ================================================================
+   EJECUTAR
+   ================================================================ */
+execBtn.addEventListener('click', async () => {
+    if (!lastResult?.arm64_code) return;
+
+    salidaOut.innerHTML = '<span class="muted">Ensamblando y ejecutando…</span>';
+    switchTab('salida');
+    execBtn.disabled = true;
+
+    try {
+        const response = await fetch('execute.php', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ arm64_code: lastResult.arm64_code }),
+        });
+
+        const result = await response.json();
+        renderSalida(result);
+
+    } catch (err) {
+        salidaOut.innerHTML = `<span class="error">Error de conexión: ${escHtml(err.message)}</span>`;
+    } finally {
+        execBtn.disabled = false;
+    }
+});
+
+function renderSalida(result) {
+    let html = '';
+
+    if (result.exit_code === -2) {
+        // herramientas no instaladas
+        html = `<div class="run-notice warn">
+            <strong>Herramientas de ejecución no disponibles</strong><br>
+            ${escHtml(result.error)}
+        </div>`;
+    } else if (result.error && !result.output) {
+        // error puro (ensamblado, enlace, timeout, segfault)
+        html = `<div class="run-notice error">
+            <strong>Error:</strong><br>
+            <pre>${escHtml(result.error)}</pre>
+        </div>`;
+    } else {
+        // hay salida (puede haber también un aviso de código de salida distinto a 0)
+        if (result.output !== '') {
+            html += `<pre class="run-stdout">${escHtml(result.output)}</pre>`;
+        } else {
+            html += '<span class="muted">(sin salida)</span>\n';
+        }
+        if (result.error) {
+            html += `<div class="run-notice error"><strong>Aviso:</strong> ${escHtml(result.error)}</div>`;
+        }
+        html += `<div class="run-footer">Código de salida: ${result.exit_code}</div>`;
+    }
+
+    salidaOut.innerHTML = html;
+}
+
+/* ================================================================
    LIMPIAR
    ================================================================ */
 document.getElementById('clearBtn').addEventListener('click', () => { editor.value = ''; updateLineNumbers(); resetOutput(); });
@@ -196,9 +262,11 @@ document.getElementById('clearBtn').addEventListener('click', () => { editor.val
 function resetOutput() {
     lastResult = null;
     consoleOut.innerHTML  = 'Listo.';
+    salidaOut.innerHTML   = 'Compila y luego presiona Ejecutar.';
     errorsOut.innerHTML   = '<p class="placeholder">No se han detectado errores.</p>';
     symbolsOut.innerHTML  = '<p class="placeholder">Compila el código para ver la tabla de símbolos.</p>';
     errorBadge.classList.add('hidden');
+    execBtn.disabled = true;
     setReportStatus('arm64',   'Sin compilar', 'none');
     setReportStatus('errors',  'Sin compilar', 'none');
     setReportStatus('symbols', 'Sin compilar', 'none');
