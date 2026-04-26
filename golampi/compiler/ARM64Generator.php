@@ -21,7 +21,7 @@ class ARM64Generator extends \GolampiBaseVisitor
     private array  $varOffsets   = [];   // nombre de variable => offset desde x29
     private int    $nextOffset   = 16;   // siguiente slot libre en el frame (empieza en [x29+16])
     private string $funcName     = '';
-    private int    $frameSize    = 512;  // frame fijo de 512 bytes por función
+    private int    $frameSize    = 496;  // frame fijo de 496 bytes (62×8, límite ldp post-index ±504)
 
     // pilas de etiquetas destino para break y continue
     private array $breakStack    = [];
@@ -29,6 +29,9 @@ class ARM64Generator extends \GolampiBaseVisitor
 
     // tabla de funciones declaradas para hoisting
     private array $funcDecls = [];
+
+    // constantes globales (declaradas fuera de funciones): name => ['type'=>..., 'intVal'=>..., 'strVal'=>...]
+    private array $globalConsts = [];
 
     // pila de scopes con tipos de variables para inferir formatos en Println
     private array $scopeStack = [[]];
@@ -133,6 +136,8 @@ class ARM64Generator extends \GolampiBaseVisitor
         for ($i = count($this->scopeStack) - 1; $i >= 0; $i--) {
             if (isset($this->scopeStack[$i][$name])) return $this->scopeStack[$i][$name];
         }
+        // constante global
+        if (isset($this->globalConsts[$name])) return $this->globalConsts[$name]['type'];
         return 'int32';
     }
 
@@ -290,6 +295,29 @@ class ARM64Generator extends \GolampiBaseVisitor
             $this->funcDecls[$func->ID()->getText()] = $func;
         }
 
+        // recolectar constantes globales (const X type = val fuera de funciones)
+        foreach ($ctx->constDecl() as $cd) {
+            $name = $cd->ID()->getText();
+            $type = $cd->type()->getText();
+            $expr = $cd->expression();
+            $val  = $expr->getText();
+            $intVal = 0;
+            $strLbl = null;
+            if ($type === 'string') {
+                $inner  = substr($val, 1, strlen($val) - 2);
+                $strLbl = $this->newStringLit($inner);
+            } elseif ($type === 'float32') {
+                $fval   = (float)$val;
+                $lbl    = '.Lgc_' . $name;
+                $this->dataLines[] = $lbl . ':';
+                $this->dataLines[] = '    .float ' . $fval;
+                $strLbl = $lbl;  // reuse field for float label
+            } else {
+                $intVal = (int)$val;
+            }
+            $this->globalConsts[$name] = ['type' => $type, 'intVal' => $intVal, 'strLbl' => $strLbl];
+        }
+
         // generar código para cada función (main incluida)
         foreach ($ctx->functionDecl() as $func) {
             $this->visitFunctionDeclNode($func);
@@ -367,6 +395,7 @@ class ARM64Generator extends \GolampiBaseVisitor
         // epílogo: restaurar sp/fp/lr y retornar
         $epilogue = '.L' . $name . '_ret';
         $this->emitLabel($epilogue);
+        if ($name === 'main') $this->emit("mov  w0, #0");   // exit code 0
         $this->emit("mov  sp, x29");
         $this->emit("ldp  x29, x30, [sp], #{$this->frameSize}");
         $this->emit("ret");
@@ -1538,8 +1567,23 @@ class ARM64Generator extends \GolampiBaseVisitor
                     $this->emit("ldr  w0, [x29, #{$off}]");
                 }
             } else {
-                // variable no encontrada en scope local (puede ser global)
-                $this->emit("mov  w0, #0");
+                // verificar si es una constante global
+                if (isset($this->globalConsts[$name])) {
+                    $gc = $this->globalConsts[$name];
+                    if ($gc['type'] === 'string') {
+                        $this->emit("adrp x0, {$gc['strLbl']}");
+                        $this->emit("add  x0, x0, :lo12:{$gc['strLbl']}");
+                    } elseif ($gc['type'] === 'float32') {
+                        $this->emit("adrp x0, {$gc['strLbl']}");
+                        $this->emit("add  x0, x0, :lo12:{$gc['strLbl']}");
+                        $this->emit("ldr  s0, [x0]");
+                        $this->emit("fmov w0, s0");
+                    } else {
+                        $this->emitIntImm($gc['intVal']);
+                    }
+                } else {
+                    $this->emit("mov  w0, #0");
+                }
             }
             return;
         }
@@ -1740,6 +1784,11 @@ class ARM64Generator extends \GolampiBaseVisitor
             if ($pr->STRING()) return 'string';
             if ($pr->TRUE() || $pr->FALSE()) return 'bool';
             if ($pr->RUNE()) return 'rune';
+            if ($pr->functionCall()) {
+                $fname = $pr->functionCall()->qualifiedName()->getText();
+                if (in_array($fname, ['typeOf', 'substr', 'now'])) return 'string';
+                return 'int32';
+            }
             if ($pr->ID()) return $this->getVarType($pr->ID()->getText());
 
         } catch (\Throwable $e) {
