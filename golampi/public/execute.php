@@ -56,7 +56,7 @@ if ($asmRet !== 0) {
 // 3. enlazar: .o → ejecutable (con libc)
 $lnkOut = [];
 $lnkRet = 0;
-exec(escapeshellcmd($gcc) . ' -o ' . escapeshellarg($exeFile) . ' ' . escapeshellarg($objFile) . ' 2>&1', $lnkOut, $lnkRet);
+exec(escapeshellcmd($gcc) . ' -no-pie -o ' . escapeshellarg($exeFile) . ' ' . escapeshellarg($objFile) . ' 2>&1', $lnkOut, $lnkRet);
 if ($lnkRet !== 0) {
     cleanup([$srcFile, $objFile, $exeFile]);
     echo json_encode([
