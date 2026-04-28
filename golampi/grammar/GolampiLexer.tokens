@@ -88,7 +88,6 @@ WS=61
 'true'=27
 'false'=28
 'nil'=29
-'int32'=30
 'float32'=31
 'string'=32
 'bool'=33

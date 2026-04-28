@@ -409,6 +409,36 @@ class SemanticVisitor extends GolampiBaseVisitor
         $col   = $ctx->getStart()->getCharPositionInLine() + 1;
         $scope = $this->scopeName();
 
+        // VAR idList '=' expList (no type — multi-return)
+        if ($ctx->idList() && !$ctx->type()) {
+            $ids = $ctx->idList()->ID();
+
+            // Try to resolve return types from a single function call
+            $returnTypes = [];
+            if ($ctx->expList() && count($ctx->expList()->expression()) === 1) {
+                $primary = $this->getPrimaryFromExpr($ctx->expList()->expression()[0]);
+                if ($primary && $primary->functionCall()) {
+                    $funcName = $primary->functionCall()->qualifiedName()->getText();
+                    $function = $this->symbolTable->getFunction($funcName);
+                    if ($function) {
+                        $returnTypes = $function->getReturnTypes();
+                    }
+                }
+            }
+
+            foreach ($ids as $i => $idNode) {
+                $name = $idNode->getText();
+                $type = isset($returnTypes[$i]) ? $returnTypes[$i] : 'int32';
+                if (!$this->symbolTable->resolveInCurrentScope($name)) {
+                    $this->symbolTable->defineVariable($name, new VariableSymbol($name, $type, $line, $col, $scope));
+                }
+            }
+            if ($ctx->expList()) {
+                foreach ($ctx->expList()->expression() as $expr) $this->visit($expr);
+            }
+            return null;
+        }
+
         // VAR idList type '=' expList  (var a, b int32 = 1, 2)
         if ($ctx->idList()) {
             $type  = $ctx->type()->getText();
@@ -643,24 +673,27 @@ class SemanticVisitor extends GolampiBaseVisitor
         $arrType   = "array[{$size}]{$innerType}";
 
         if ($ctx->arrayRowElements()) {
-            $rows          = $ctx->arrayRowElements()->arrayElements();
+            $items         = $ctx->arrayRowElements()->arrayRowItem();
             $innerElemType = $this->arrayElementType($innerType);
-            if (count($rows) !== $size) {
+            if (count($items) !== $size) {
                 $this->addError(
-                    "Arreglo 2D: se esperaban $size filas, se obtuvieron " . count($rows) . ".",
+                    "Arreglo 2D/3D: se esperaban $size filas, se obtuvieron " . count($items) . ".",
                     $ctx
                 );
             } else {
-                foreach ($rows as $row) {
-                    foreach ($row->expression() as $expr) {
-                        $t = $this->visit($expr);
-                        if ($t !== null && $t !== $innerElemType) {
-                            $this->addError(
-                                "Elemento tipo '$t' no coincide con '$innerElemType'.",
-                                $expr
-                            );
+                foreach ($items as $rowItem) {
+                    if ($rowItem->arrayElements()) {
+                        foreach ($rowItem->arrayElements()->expression() as $expr) {
+                            $t = $this->visit($expr);
+                            if ($t !== null && $t !== $innerElemType) {
+                                $this->addError(
+                                    "Elemento tipo '$t' no coincide con '$innerElemType'.",
+                                    $expr
+                                );
+                            }
                         }
                     }
+                    // nested rows (3D+): skip deep validation for now
                 }
             }
         }
@@ -1223,6 +1256,7 @@ class SemanticVisitor extends GolampiBaseVisitor
         if ($ctx->getToken(GolampiParser::NIL, 0))    return 'nil';
 
         if ($ctx->arrayAccess()) return $this->visitArrayAccess($ctx->arrayAccess());
+        if ($ctx->typeCast())   return $ctx->typeCast()->type()->getText();
 
         if ($ctx->ID()) {
             $varName = $ctx->ID()->getText();

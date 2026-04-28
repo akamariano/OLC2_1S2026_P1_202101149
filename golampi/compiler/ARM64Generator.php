@@ -21,7 +21,6 @@ class ARM64Generator extends \GolampiBaseVisitor
     private array  $varOffsets   = [];   // nombre de variable => offset desde x29
     private int    $nextOffset   = 16;   // siguiente slot libre en el frame (empieza en [x29+16])
     private string $funcName     = '';
-    private int    $frameSize    = 496;  // frame fijo de 496 bytes (62×8, límite ldp post-index ±504)
 
     // pilas de etiquetas destino para break y continue
     private array $breakStack    = [];
@@ -237,26 +236,56 @@ class ARM64Generator extends \GolampiBaseVisitor
         $eSize = $this->elemSize($elemType);
 
         if ($literalCtx->arrayRowElements()) {
-            // 2D: {{1,2},{3,4}}
-            $cols = isset($dims[1]) ? $dims[1] : 1;
-            $rows = $literalCtx->arrayRowElements()->arrayElements();
-            foreach ($rows as $r => $rowCtx) {
-                foreach ($rowCtx->expression() as $c => $elem) {
-                    $byteOff = $baseOff + ($r * $cols + $c) * $eSize;
-                    $this->genExpr($elem);
-                    $this->emit("str  w0, [x29, #{$byteOff}]");
-                }
-            }
+            $this->initFromRowElements($baseOff, $dims, $elemType, $eSize, $literalCtx->arrayRowElements(), 0);
         } elseif ($literalCtx->arrayElements()) {
             // 1D: {1, 2, 3}
             foreach ($literalCtx->arrayElements()->expression() as $i => $elem) {
                 $byteOff = $baseOff + $i * $eSize;
+                if ($elemType === 'float32') $this->enterFloat();
                 $this->genExpr($elem);
+                if ($elemType === 'float32') $this->exitFloat();
                 if ($eSize === 8) {
                     $this->emit("str  x0, [x29, #{$byteOff}]");
+                } elseif ($elemType === 'float32') {
+                    $this->emit("fmov s0, w0");
+                    $this->emit("str  s0, [x29, #{$byteOff}]");
                 } else {
                     $this->emit("str  w0, [x29, #{$byteOff}]");
                 }
+            }
+        }
+    }
+
+    private function initFromRowElements(int $baseOff, array $dims, string $elemType, int $eSize, $rowElemsCtx, int $depth): void
+    {
+        // stride of one row at this depth = product(dims[depth+1..]) * eSize
+        $rowStride = $eSize;
+        for ($d = $depth + 1; $d < count($dims); $d++) {
+            $rowStride *= $dims[$d];
+        }
+
+        foreach ($rowElemsCtx->arrayRowItem() as $r => $rowItem) {
+            $rowBase = $baseOff + $r * $rowStride;
+
+            if ($rowItem->arrayElements()) {
+                // leaf row: {e0, e1, ...}
+                foreach ($rowItem->arrayElements()->expression() as $c => $elem) {
+                    $byteOff = $rowBase + $c * $eSize;
+                    if ($elemType === 'float32') $this->enterFloat();
+                    $this->genExpr($elem);
+                    if ($elemType === 'float32') $this->exitFloat();
+                    if ($eSize === 8) {
+                        $this->emit("str  x0, [x29, #{$byteOff}]");
+                    } elseif ($elemType === 'float32') {
+                        $this->emit("fmov s0, w0");
+                        $this->emit("str  s0, [x29, #{$byteOff}]");
+                    } else {
+                        $this->emit("str  w0, [x29, #{$byteOff}]");
+                    }
+                }
+            } elseif ($rowItem->arrayRowElements()) {
+                // nested rows: {{...}, {...}} — recurse
+                $this->initFromRowElements($rowBase, $dims, $elemType, $eSize, $rowItem->arrayRowElements(), $depth + 1);
             }
         }
     }
@@ -345,9 +374,12 @@ class ARM64Generator extends \GolampiBaseVisitor
         $this->arrayInfo  = [];
         $this->pushScope();
 
-        // prólogo: bajar el stack y fijar el frame pointer
+        // prólogo: reservar frame con sub+stp para soportar tamaños arbitrarios
+        // se emite un placeholder y se parchea al final cuando nextOffset es conocido
         $this->emitLabel($name);
-        $this->emit("stp  x29, x30, [sp, #-{$this->frameSize}]!");
+        $subIdx = count($this->textLines);
+        $this->emit("sub  sp, sp, #16");   // placeholder: se parchea al final
+        $this->emit("stp  x29, x30, [sp]");
         $this->emit("mov  x29, sp");
 
         // guardar cada parámetro de entrada en su slot del frame
@@ -397,9 +429,17 @@ class ARM64Generator extends \GolampiBaseVisitor
         $this->emitLabel($epilogue);
         if ($name === 'main') $this->emit("mov  w0, #0");   // exit code 0
         $this->emit("mov  sp, x29");
-        $this->emit("ldp  x29, x30, [sp], #{$this->frameSize}");
+        $this->emit("ldp  x29, x30, [sp]");
+        $addIdx = count($this->textLines);
+        $this->emit("add  sp, sp, #16");   // placeholder: se parchea al final
         $this->emit("ret");
         $this->textLines[] = '';   // línea en blanco entre funciones
+
+        // calcular tamaño real del frame y parchear los placeholders
+        $fs = ($this->nextOffset + 15) & ~15;  // alinear a 16 bytes
+        if ($fs < 16) $fs = 16;
+        $this->textLines[$subIdx] = "    sub  sp, sp, #{$fs}";
+        $this->textLines[$addIdx] = "    add  sp, sp, #{$fs}";
 
         $this->popScope();
     }
@@ -440,6 +480,7 @@ class ARM64Generator extends \GolampiBaseVisitor
         if ($ctx->incDecStmt())   { $this->genIncDec($ctx->incDecStmt());            return; }
         if ($ctx->returnStmt())   { $this->genReturn($ctx->returnStmt());            return; }
         if ($ctx->functionCall()) { $this->genFunctionCall($ctx->functionCall());    return; }
+        if ($ctx->block())        { $this->visitBlockNode($ctx->block());            return; }
         if ($ctx->expression())   { $this->genExpr($ctx->expression());              return; }
     }
 
@@ -467,11 +508,24 @@ class ARM64Generator extends \GolampiBaseVisitor
             return;
         }
 
-        // VAR idList type '=' expList
+        // VAR idList type '=' expList  OR  VAR idList '=' expList (no type — multi-return)
         if ($ctx->idList() && $ctx->expList()) {
             $ids  = $ctx->idList()->ID();
             $exps = $ctx->expList()->expression();
-            $type = $ctx->type()->getText();
+            $type = $ctx->type() ? $ctx->type()->getText() : 'int32';
+
+            // caso multi-retorno: var a, b, c = func()
+            if (count($ids) > 1 && count($exps) === 1) {
+                $pr = $this->getPrimary($exps[0]);
+                if ($pr && $pr->functionCall()) {
+                    $this->genFunctionCall($pr->functionCall());
+                    for ($i = 0; $i < count($ids); $i++) {
+                        $off = $this->allocVar($ids[$i]->getText(), 'int32');
+                        $this->emit("str  w{$i}, [x29, #{$off}]");
+                    }
+                    return;
+                }
+            }
 
             // evaluar expresiones y pushear al stack temporal
             foreach ($exps as $exp) {
@@ -580,21 +634,18 @@ class ARM64Generator extends \GolampiBaseVisitor
         $exps = $ctx->expList()->expression();
         $n    = count($ids);
 
-        // caso multi-retorno: a, b := funcionQueRetorna2Valores()
+        // caso multi-retorno: a, b, c := func()
         if ($n > 1 && count($exps) === 1) {
             $pr = $this->getPrimary($exps[0]);
             if ($pr && $pr->functionCall()) {
                 $this->genFunctionCall($pr->functionCall());
-                // w0 = primer valor, x1 = segundo valor
-                $off0 = isset($this->varOffsets[$ids[0]->getText()])
-                    ? $this->varOffsets[$ids[0]->getText()]
-                    : $this->allocVar($ids[0]->getText(), 'int32');
-                $this->emit("str  w0, [x29, #{$off0}]");
-                if (isset($ids[1])) {
-                    $off1 = isset($this->varOffsets[$ids[1]->getText()])
-                        ? $this->varOffsets[$ids[1]->getText()]
-                        : $this->allocVar($ids[1]->getText(), 'int32');
-                    $this->emit("str  w1, [x29, #{$off1}]");
+                // w0=first, x1=second, x2=third... (up to 8)
+                for ($i = 0; $i < $n; $i++) {
+                    $iname = $ids[$i]->getText();
+                    $off = isset($this->varOffsets[$iname])
+                        ? $this->varOffsets[$iname]
+                        : $this->allocVar($iname, 'int32');
+                    $this->emit("str  w{$i}, [x29, #{$off}]");
                 }
                 return;
             }
@@ -753,14 +804,21 @@ class ARM64Generator extends \GolampiBaseVisitor
             $this->emit("add  x8, x8, x1");
         }
 
+        $elemType = $info ? $info['elemType'] : 'int32';
+
         // guardar dirección final y evaluar valor
-        $this->emit("str  x8, [sp, #-16]!");        // push dirección destino
+        $this->emit("str  x8, [sp, #-16]!");
+        if ($elemType === 'float32') $this->enterFloat();
         $this->genExpr($valExpr);
-        $this->emit("ldr  x8, [sp], #16");          // pop dirección destino
+        if ($elemType === 'float32') $this->exitFloat();
+        $this->emit("ldr  x8, [sp], #16");
 
         if ($op === '=') {
             if ($eSize === 8) {
                 $this->emit("str  x0, [x8]");
+            } elseif ($elemType === 'float32') {
+                $this->emit("fmov s0, w0");
+                $this->emit("str  s0, [x8]");
             } else {
                 $this->emit("str  w0, [x8]");
             }
@@ -952,8 +1010,24 @@ class ARM64Generator extends \GolampiBaseVisitor
             $this->emit("ldr  w0, [x29, #{$off}]");
             $this->emit("sub  w0, w0, #1");
             $this->emit("str  w0, [x29, #{$off}]");
+        } elseif ($ctx->assignOp()) {
+            // ID assignOp expression  (e.g., i += 6)
+            $this->genExpr($ctx->expression());
+            $assignOp = $ctx->assignOp()->getText();
+            if ($assignOp === '=') {
+                $this->emit("str  w0, [x29, #{$off}]");
+            } else {
+                $this->emit("ldr  w1, [x29, #{$off}]");
+                switch ($assignOp) {
+                    case '+=': $this->emit("add  w0, w1, w0"); break;
+                    case '-=': $this->emit("sub  w0, w1, w0"); break;
+                    case '*=': $this->emit("mul  w0, w1, w0"); break;
+                    case '/=': $this->emit("sdiv w0, w1, w0"); break;
+                }
+                $this->emit("str  w0, [x29, #{$off}]");
+            }
         } else {
-            // ID '=' expression
+            // legacy ID '=' expression
             $this->genExpr($ctx->expression());
             $this->emit("str  w0, [x29, #{$off}]");
         }
@@ -996,22 +1070,18 @@ class ARM64Generator extends \GolampiBaseVisitor
                 if ($t0 === 'float32') $this->exitFloat();
 
             } elseif ($n >= 2) {
-                // evaluar primer valor y guardarlo en stack
-                $t0 = $this->inferExprType($exps[0]);
-                if ($t0 === 'float32') $this->enterFloat();
-                $this->genExpr($exps[0]);
-                if ($t0 === 'float32') $this->exitFloat();
-                $this->emit("str  x0, [sp, #-16]!");   // push primer valor
-
-                // evaluar segundo valor → x1
-                $t1 = $this->inferExprType($exps[1]);
-                if ($t1 === 'float32') $this->enterFloat();
-                $this->genExpr($exps[1]);
-                if ($t1 === 'float32') $this->exitFloat();
-                $this->emit("mov  x1, x0");
-
-                // recuperar primer valor a x0
-                $this->emit("ldr  x0, [sp], #16");
+                // evaluar todos los valores y pushear al stack
+                for ($i = 0; $i < $n; $i++) {
+                    $ti = $this->inferExprType($exps[$i]);
+                    if ($ti === 'float32') $this->enterFloat();
+                    $this->genExpr($exps[$i]);
+                    if ($ti === 'float32') $this->exitFloat();
+                    $this->emit("str  x0, [sp, #-16]!");
+                }
+                // pop en orden inverso: x(n-1)..x1 primero, x0 último
+                for ($i = $n - 1; $i >= 0; $i--) {
+                    $this->emit("ldr  x{$i}, [sp], #16");
+                }
             }
         }
 
@@ -1255,12 +1325,13 @@ class ARM64Generator extends \GolampiBaseVisitor
 
         $items    = $ctx->argList()->argItem();
         $fmtParts = [];
+        $argTypes = [];   // tipo de cada arg (para decidir GP vs VR en el pop)
 
         // 1. evaluar cada argumento y pushear al stack temporal
         foreach ($items as $item) {
             if ($item->REF()) {
-                // &ID — puntero, imprimir dirección
                 $fmtParts[] = '%p';
+                $argTypes[] = 'ptr';
                 $this->emit("mov  x0, xzr");
                 $this->emit("str  x0, [sp, #-16]!");
                 continue;
@@ -1269,18 +1340,18 @@ class ARM64Generator extends \GolampiBaseVisitor
             $exp  = $item->expression();
             $type = $this->inferExprType($exp);
 
-            // evaluar expresión con modo float si corresponde
             if ($type === 'float32') $this->enterFloat();
             $this->genExpr($exp);
             if ($type === 'float32') $this->exitFloat();
 
             if ($type === 'string') {
                 $fmtParts[] = '%s';
+                $argTypes[] = 'string';
                 $this->emit("str  x0, [sp, #-16]!");
 
             } elseif ($type === 'bool') {
                 $fmtParts[] = '%s';
-                // convertir 0/1 en "false"/"true"
+                $argTypes[] = 'string';  // convertido a string ptr
                 $lblT   = $this->newLabel('.Lbt');
                 $lblD   = $this->newLabel('.Lbd');
                 $sTrue  = $this->newStringLit('true');
@@ -1296,36 +1367,71 @@ class ARM64Generator extends \GolampiBaseVisitor
                 $this->emit("str  x0, [sp, #-16]!");
 
             } elseif ($type === 'float32') {
-                // %f requiere double en variadic: bits IEEE 754 en w0 → s0 → d0 → x0
-                $fmtParts[] = '%f';
+                // %g: double en registro VR (d0, d1...) — guardar double bits al stack
+                $fmtParts[] = '%g';
+                $argTypes[] = 'float32';
                 $this->emit("fmov s0, w0");
                 $this->emit("fcvt d0, s0");
                 $this->emit("fmov x0, d0");
                 $this->emit("str  x0, [sp, #-16]!");
 
             } else {
-                // int32, rune
                 $fmtParts[] = '%d';
+                $argTypes[] = 'int';
                 $this->emit("sxtw x0, w0");
                 $this->emit("str  x0, [sp, #-16]!");
             }
         }
 
-        // 2. construir string de formato y cargarlo en x8 (registro auxiliar)
+        // 2. construir string de formato (registrar etiqueta; ADRP se emite tras los pops)
         $fmtStr = implode(' ', $fmtParts) . '\n';
         $fmtLbl = $this->newStringLit($fmtStr);
-        $this->emit("adrp x8, {$fmtLbl}");
-        $this->emit("add  x8, x8, :lo12:{$fmtLbl}");
 
-        // 3. pop argumentos en registros x1, x2, ... (orden inverso)
-        $n = count($items);
-        for ($i = $n; $i >= 1; $i--) {
-            $this->emit("ldr  x{$i}, [sp], #16");
+        // 3. pre-calcular destinos: floats → d0,d1... / resto → x1,x2...
+        $gpIdx = 1;
+        $vrIdx = 0;
+        $argDests = [];
+        foreach ($argTypes as $t) {
+            if ($t === 'float32') {
+                $argDests[] = 'd' . $vrIdx++;
+            } else {
+                $argDests[] = 'x' . $gpIdx++;
+            }
         }
 
-        // 4. formato en x0 y llamar printf
-        $this->emit("mov  x0, x8");
+        // 4. pop en orden inverso al stack
+        $n = count($argDests);
+        for ($i = $n - 1; $i >= 0; $i--) {
+            $dest = $argDests[$i];
+            if ($dest[0] === 'd') {
+                // double bits → registro FPU; usar x10 para no pisar x8/x9
+                $this->emit("ldr  x10, [sp], #16");
+                $this->emit("fmov {$dest}, x10");
+            } else {
+                $this->emit("ldr  {$dest}, [sp], #16");
+            }
+        }
+
+        // 4b. args GP que exceden x7 (x8, x9, ...) no son registros de argumento
+        // AAPCS64: variadic args extra van en [sp] antes del bl → devolver al stack
+        $overflowRegs = [];
+        for ($r = 8; $r < $gpIdx; $r++) {
+            $overflowRegs[] = 'x' . $r;
+        }
+        // push en orden inverso: x8 queda en dirección más baja (primer arg de stack)
+        foreach (array_reverse($overflowRegs) as $reg) {
+            $this->emit("str  {$reg}, [sp, #-16]!");
+        }
+
+        // 5. cargar formato en x0 DESPUÉS de los pops (evita colisión con x8)
+        $this->emit("adrp x0, {$fmtLbl}");
+        $this->emit("add  x0, x0, :lo12:{$fmtLbl}");
         $this->emit("bl   printf");
+
+        // 6. limpiar stack overflow args
+        if (!empty($overflowRegs)) {
+            $this->emit("add  sp, sp, #" . (count($overflowRegs) * 16));
+        }
     }
 
     // ================================================================
@@ -1541,9 +1647,30 @@ class ARM64Generator extends \GolampiBaseVisitor
             return;
         }
 
-        // acceso a arreglo: arr[i]
+        // acceso a arreglo o cadena: arr[i] / str[i]
         if ($ctx->arrayAccess()) {
             $this->genArrayAccess($ctx->arrayAccess());
+            return;
+        }
+
+        // conversión de tipo: rune(expr), int32(expr), float32(expr), etc.
+        if ($ctx->typeCast()) {
+            $targetType = $ctx->typeCast()->type()->getText();
+            $innerType  = $this->inferExprType($ctx->typeCast()->expression());
+            if ($innerType === 'float32') $this->enterFloat();
+            $this->genExpr($ctx->typeCast()->expression());
+            if ($innerType === 'float32') $this->exitFloat();
+            // la mayoría de casts son no-ops en nivel de bits (rune↔int32, int32↔bool)
+            // float32→int32: truncar
+            if ($innerType === 'float32' && in_array($targetType, ['int32','rune','int'])) {
+                $this->emit("fmov s0, w0");
+                $this->emit("fcvtzs w0, s0");
+            }
+            // int32→float32: convertir
+            if (in_array($innerType, ['int32','rune','int']) && $targetType === 'float32') {
+                $this->emit("scvtf s0, w0");
+                $this->emit("fmov  w0, s0");
+            }
             return;
         }
 
@@ -1631,8 +1758,13 @@ class ARM64Generator extends \GolampiBaseVisitor
         if ($ctx->TRUE())  { $this->emit("mov  w0, #1"); return; }
         if ($ctx->FALSE()) { $this->emit("mov  w0, #0"); return; }
 
-        // nil
-        if ($ctx->NIL()) { $this->emit("mov  x0, xzr"); return; }
+        // nil → imprime como <nil>
+        if ($ctx->NIL()) {
+            $lbl = $this->newStringLit('<nil>');
+            $this->emit("adrp x0, {$lbl}");
+            $this->emit("add  x0, x0, :lo12:{$lbl}");
+            return;
+        }
     }
 
     // ================================================================
@@ -1649,8 +1781,19 @@ class ARM64Generator extends \GolampiBaseVisitor
 
         $info    = $this->arrayInfo[$name] ?? null;
         $dims    = $info ? $info['dims'] : [];
-        $eSize   = $info ? $info['elemSize'] : 4;
         $varType = $this->getVarType($name);
+        $elemType = $info ? $info['elemType'] : 'int32';
+
+        // string indexing: byte access
+        if ($varType === 'string') {
+            $this->emit("ldr  x8, [x29, #{$off}]");  // load string pointer
+            $this->genExpr($indices[0]);
+            $this->emit("sxtw x1, w0");
+            $this->emit("ldrb w0, [x8, x1]");        // load byte at index
+            return;
+        }
+
+        $eSize = $info ? $info['elemSize'] : 4;
 
         // si es puntero a arreglo: cargar el valor del puntero como base
         if (str_starts_with($varType, 'ptr:')) {
@@ -1683,6 +1826,10 @@ class ARM64Generator extends \GolampiBaseVisitor
 
         if ($eSize === 8) {
             $this->emit("ldr  x0, [x8]");
+        } elseif ($elemType === 'float32') {
+            // load 4-byte float → s0 → w0 (IEEE754 bits in w0 for uniform handling)
+            $this->emit("ldr  s0, [x8]");
+            $this->emit("fmov w0, s0");
         } else {
             $this->emit("ldr  w0, [x8]");
         }
@@ -1741,6 +1888,9 @@ class ARM64Generator extends \GolampiBaseVisitor
         // booleanos literales
         if ($text === 'true' || $text === 'false') return 'bool';
 
+        // nil → se trata como string (<nil>)
+        if ($text === 'nil') return 'string';
+
         // intentar navegar hasta primary
         try {
             $lo = $exprCtx->logicalOr();
@@ -1756,11 +1906,15 @@ class ARM64Generator extends \GolampiBaseVisitor
 
             $cp = $eq->comparison()[0];
 
-            // recorrer todos los términos/factores buscando float32
+            // recorrer todos los términos/factores buscando float32 o bool (negación)
             foreach ($cp->term() as $tm) {
                 foreach ($tm->factor() as $fc) {
                     foreach ($fc->unary() as $un) {
-                        if (!$un->primary()) continue;
+                        if (!$un->primary()) {
+                            // BANG unary → resultado booleano
+                            if (method_exists($un, 'BANG') && $un->BANG()) return 'bool';
+                            continue;
+                        }
                         $pr = $un->primary();
                         if ($pr->FLOAT()) return 'float32';
                         if ($pr->ID()) {
@@ -1784,9 +1938,23 @@ class ARM64Generator extends \GolampiBaseVisitor
             if ($pr->STRING()) return 'string';
             if ($pr->TRUE() || $pr->FALSE()) return 'bool';
             if ($pr->RUNE()) return 'rune';
+            if ($pr->typeCast()) return $pr->typeCast()->type()->getText();
+            if ($pr->arrayAccess()) {
+                $arrName = $pr->arrayAccess()->ID()->getText();
+                if (isset($this->arrayInfo[$arrName])) {
+                    return $this->arrayInfo[$arrName]['elemType'];
+                }
+                return 'int32';
+            }
             if ($pr->functionCall()) {
                 $fname = $pr->functionCall()->qualifiedName()->getText();
                 if (in_array($fname, ['typeOf', 'substr', 'now'])) return 'string';
+                if (isset($this->funcDecls[$fname])) {
+                    $rt = $this->funcDecls[$fname]->returnType();
+                    if ($rt && !$rt->getChildCount()) return 'int32';
+                    if ($rt && $rt->type()) return $rt->type()->getText();
+                    if ($rt && $rt->arrayType()) return 'array';
+                }
                 return 'int32';
             }
             if ($pr->ID()) return $this->getVarType($pr->ID()->getText());

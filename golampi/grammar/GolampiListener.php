@@ -192,6 +192,16 @@ interface GolampiListener extends ParseTreeListener {
 	 */
 	public function exitArrayRowElements(Context\ArrayRowElementsContext $context): void;
 	/**
+	 * Enter a parse tree produced by {@see GolampiParser::arrayRowItem()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterArrayRowItem(Context\ArrayRowItemContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::arrayRowItem()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitArrayRowItem(Context\ArrayRowItemContext $context): void;
+	/**
 	 * Enter a parse tree produced by {@see GolampiParser::arrayAccess()}.
 	 * @param $context The parse tree.
 	 */
@@ -481,6 +491,16 @@ interface GolampiListener extends ParseTreeListener {
 	 * @param $context The parse tree.
 	 */
 	public function exitPrimary(Context\PrimaryContext $context): void;
+	/**
+	 * Enter a parse tree produced by {@see GolampiParser::typeCast()}.
+	 * @param $context The parse tree.
+	 */
+	public function enterTypeCast(Context\TypeCastContext $context): void;
+	/**
+	 * Exit a parse tree produced by {@see GolampiParser::typeCast()}.
+	 * @param $context The parse tree.
+	 */
+	public function exitTypeCast(Context\TypeCastContext $context): void;
 	/**
 	 * Enter a parse tree produced by {@see GolampiParser::type()}.
 	 * @param $context The parse tree.

@@ -255,6 +255,19 @@ class GolampiBaseListener implements GolampiListener
 	 *
 	 * The default implementation does nothing.
 	 */
+	public function enterArrayRowItem(Context\ArrayRowItemContext $context): void {}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function exitArrayRowItem(Context\ArrayRowItemContext $context): void {}
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
 	public function enterArrayAccess(Context\ArrayAccessContext $context): void {}
 
 	/**
@@ -627,6 +640,19 @@ class GolampiBaseListener implements GolampiListener
 	 * The default implementation does nothing.
 	 */
 	public function exitPrimary(Context\PrimaryContext $context): void {}
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function enterTypeCast(Context\TypeCastContext $context): void {}
+
+	/**
+	 * {@inheritdoc}
+	 *
+	 * The default implementation does nothing.
+	 */
+	public function exitTypeCast(Context\TypeCastContext $context): void {}
 	/**
 	 * {@inheritdoc}
 	 *

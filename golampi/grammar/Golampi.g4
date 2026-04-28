@@ -71,6 +71,7 @@ statement
     | incDecStmt
     | returnStmt
     | functionCall ';'?
+    | block
     | expression ';'?
     ;
 
@@ -79,6 +80,7 @@ statement
 varDecl
     : VAR ID type ('=' expression)? ';'?
     | VAR idList type '=' expList ';'?
+    | VAR idList '=' expList ';'?
     | VAR ID arrayType ('=' arrayLiteral)? ';'?
     | VAR ID arrayType '=' expression ';'?
     | VAR ID STAR type ';'?
@@ -116,11 +118,16 @@ arrayLiteral
     ;
 
 arrayElements
-    : expression (',' expression)*
+    : expression (',' expression)* ','?
     ;
 
 arrayRowElements
-    : '{' arrayElements? '}' (',' '{' arrayElements? '}')* ','?
+    : arrayRowItem (',' arrayRowItem)* ','?
+    ;
+
+arrayRowItem
+    : '{' arrayElements? '}'
+    | '{' arrayRowElements? '}'
     ;
 
 arrayAccess
@@ -169,7 +176,7 @@ forInit
 forPost
     : ID '++'
     | ID '--'
-    | ID '=' expression
+    | ID assignOp expression
     ;
 
 switchStmt
@@ -256,6 +263,7 @@ primary
     : '(' expression ')'
     | functionCall
     | arrayAccess
+    | typeCast
     | ID
     | INT
     | FLOAT
@@ -264,6 +272,10 @@ primary
     | TRUE
     | FALSE
     | NIL
+    ;
+
+typeCast
+    : type '(' expression ')'
     ;
 
 // ---------------- TYPES ----------------
@@ -296,7 +308,7 @@ FALSE       : 'false';
 NIL         : 'nil';
 
 // Types (antes de ID para que no sean parseados como identificadores)
-INT_TYPE    : 'int32';
+INT_TYPE    : 'int32' | 'int';
 FLOAT_TYPE  : 'float32';
 STRING_TYPE : 'string';
 BOOL_TYPE   : 'bool';
