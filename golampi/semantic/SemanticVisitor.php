@@ -1090,7 +1090,12 @@ class SemanticVisitor extends GolampiBaseVisitor
         for ($i = 1; $i < count($ctx->comparison()); $i++) {
             $right = $this->visit($ctx->comparison($i));
             if ($type !== null && $right !== null && $type !== $right) {
-                $this->addError("Comparación inválida entre tipos '$type' y '$right'.", $ctx);
+                // nil puede compararse con cualquier tipo puntero o con nil
+                if ($type === 'nil' || $right === 'nil') {
+                    // válido: x == nil, nil == nil, ptr != nil
+                } else {
+                    $this->addError("Comparación inválida entre tipos '$type' y '$right'.", $ctx);
+                }
             }
             $type = 'bool';
         }

@@ -557,7 +557,7 @@ b    .Lor_end
 .Lor_end:
 ```
 
-### 3.7 Arreglos 1D y 2D
+### 3.7 Arreglos N-dimensionales
 
 **Arreglo 1D:** los elementos se almacenan contiguamente en el frame. El acceso `arr[i]` calcula:
 ```
@@ -566,10 +566,30 @@ dirección_elemento = base + i * elemSize
 
 **Arreglo 2D `[rows][cols]T`:** el acceso `mat[i][j]` calcula:
 ```
-dirección_elemento = base + (i * cols + j) * elemSize
+dirección_elemento = base + i * (cols * elemSize) + j * elemSize
 ```
 
-El stride (número de columnas) se obtiene en tiempo de compilación desde la información del arreglo (`arrayInfo`).
+**Arreglo 3D `[d0][d1][d2]T`:** el acceso `cubo[k][i][j]` calcula:
+```
+dirección_elemento = base + k*(d1*d2*elemSize) + i*(d2*elemSize) + j*elemSize
+```
+
+En general, para un arreglo N-dimensional `[d0][d1]...[dN-1]T`, el stride del índice `k` es:
+```
+stride_k = elemSize * d_{k+1} * d_{k+2} * ... * d_{N-1}
+```
+
+Los strides y dimensiones se obtienen en tiempo de compilación desde `$arrayInfo`. Los índices siempre se evalúan en contexto entero (fuera de `floatDepth`), garantizando que `sxtw` reciba valores enteros correctos.
+
+**Retorno de arreglo por valor:** cuando una función retorna un arreglo (p.ej. `[2]int32`), el callee aloca el arreglo en su propio frame y retorna su dirección en `x0`. El caller copia todos los elementos inmediatamente tras `bl` antes de cualquier otra llamada, para evitar lecturas de memoria liberada:
+
+```asm
+bl   reglaCramer
+ldr  w1, [x0, #0]        ; copiar elemento 0
+str  w1, [x29, #off]
+ldr  w1, [x0, #4]        ; copiar elemento 1
+str  w1, [x29, #off+4]
+```
 
 ### 3.8 Múltiples Valores de Retorno
 
@@ -598,7 +618,48 @@ Las constantes globales se recolectan antes de generar código de funciones. Dep
 
 Cuando se referencia una constante en una expresión, el generador emite el valor inline sin ocupar slot en el frame.
 
-### 3.10 Funciones Embebidas
+### 3.10 Punteros Escalares — Auto-Desreferencia
+
+Los parámetros declarados como puntero a tipo escalar (`*int32`, `*float32`, `*bool`) permiten modificar el valor original desde dentro de la función. El compilador aplica **auto-desreferencia** automáticamente:
+
+- **Lectura** (`genPrimary`): carga el puntero con `ldr x0, [x29, #off]` y luego desreferencia `ldr w0, [x0]`, poniendo el valor apuntado en `w0`.
+- **Escritura** (`storeVar`): carga el puntero con `ldr x1, [x29, #off]` y almacena el nuevo valor con `str w0, [x1]`, escribiendo a través del puntero.
+
+Esta auto-desreferencia solo aplica para `ptr:T` donde `T` **no** es un arreglo (se excluye `ptr:[N]T`), ya que los arreglos se pasan por referencia implícita y no necesitan este mecanismo.
+
+```asm
+; temp := *x  (auto-deref en lectura)
+ldr  x0, [x29, #off_x]   ; cargar puntero
+ldr  w0, [x0]             ; desreferenciar → valor en w0
+
+; *x = *y  (auto-deref en escritura)
+ldr  w0, [x29_y]          ; valor nuevo en w0
+ldr  x1, [x29, #off_x]   ; cargar puntero destino
+str  w0, [x1]             ; escribir a través del puntero
+```
+
+### 3.11 Manejo de nil
+
+`nil` en Golampi representa un valor nulo para punteros y strings. El compilador lo maneja de dos formas:
+
+- **Impresión de nil** (`fmt.Println(ptrVar)`): cuando la variable contiene el valor cero (`0x0`), se imprime la cadena `<nil>`.
+- **Comparación `nil == nil`**: el compilador detecta que ambos operandos son el literal `nil` y emite directamente la dirección del string `<nil>` en `x0`, sin realizar comparación de punteros en tiempo de ejecución. Esto es necesario porque cada literal `nil` se almacena en una etiqueta diferente en `.data`.
+
+### 3.12 Conversión Implícita int32 → float32
+
+Cuando una variable entera se usa en contexto float (p.ej. dentro de `genArrayAssign` con `elemType=float32`), el compilador emite una conversión explícita con `scvtf` antes de realizar la operación aritmética flotante:
+
+```asm
+ldr  w0, [x29, #off_suma]   ; cargar entero
+scvtf s0, w0                 ; convertir int32 → float32
+fmov w0, s0                  ; float bits en w0 para operaciones uniformes
+```
+
+Esto garantiza que expresiones como `suma / 2.0` (con `suma` de tipo `int32`) produzcan el resultado flotante correcto en lugar de interpretar los bits del entero como IEEE 754.
+
+Los índices de arreglo siempre se evalúan **fuera** del contexto flotante (suspendiendo `floatDepth` temporalmente) para que `sxtw` reciba un entero puro y no bits de float.
+
+### 3.13 Funciones Embebidas
 
 | Función | Implementación ARM64 |
 |---------|---------------------|
@@ -608,7 +669,7 @@ Cuando se referencia una constante en una expresión, el generador emite el valo
 | `now()` | Llama a `time()` → `localtime()` → `strftime()` |
 | `typeOf(x)` | En compile-time: emite dirección de literal string con el nombre del tipo |
 
-### 3.11 Ejemplo Completo de Salida
+### 3.14 Ejemplo Completo de Salida
 
 Para el programa:
 ```go

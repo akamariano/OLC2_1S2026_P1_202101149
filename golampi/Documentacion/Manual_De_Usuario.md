@@ -1,4 +1,4 @@
-# Manual de Usuario - Golampi Interpreter
+# Manual de Usuario - Golampi Compilador ARM64
 | Nombre | Carnet|
 |----------|-------|
 | Mariano Roberto Rac Noguera| 202101149 |
@@ -24,6 +24,14 @@ Antes de instalar y usar Golampi, asegúrate de tener lo siguiente:
 | **PHP** | 7.4+ | Lenguaje de programación backend |
 | **Composer** | 2.0+ | Gestor de dependencias PHP |
 | **PHP CLI** | 7.4+ | Interfaz de línea de comandos de PHP |
+| **aarch64-linux-gnu-gcc** | 10+ | Cross-compilador ARM64 (enlazado) |
+| **aarch64-linux-gnu-as** | 2.35+ | Cross-ensamblador ARM64 |
+| **qemu-aarch64-static** | 5.0+ | Emulador ARM64 para ejecución en x86 |
+
+Para instalar las herramientas de cross-compilación en Ubuntu/Debian:
+```bash
+sudo apt-get install gcc-aarch64-linux-gnu qemu-user-static
+```
 
 ### Navegador Web
 
@@ -169,13 +177,16 @@ Presionar `Ctrl+C` en la terminal
 
 ### Barra de Herramientas
 
-| Botón | Función |
-|-------|---------|
-| **Nuevo** | Crear archivo nuevo en blanco |
-| **Abrir** | Abrir archivo `.golampi` existente |
-| **Guardar** | Guardar código a archivo local |
-| **Ejecutar** | Compilar, analizar e interpretar código |
-| **Limpiar** | Limpiar panel de consola |
+| Botón | Función | Atajo |
+|-------|---------|-------|
+| **Nuevo** | Crear archivo nuevo con código de ejemplo | — |
+| **Abrir** | Abrir archivo `.golampi` o `.go` existente | — |
+| **Guardar** | Descargar el código actual como archivo | — |
+| **Compilar** | Analizar el código y generar ensamblador ARM64 | `Ctrl+Enter` |
+| **Ejecutar** | Ensamblar y ejecutar el ARM64 via QEMU | `Ctrl+Shift+Enter` |
+| **Limpiar** | Limpiar los paneles de salida | — |
+
+> El botón **Ejecutar** permanece deshabilitado hasta que se realiza una compilación exitosa.
 
 ### Paneles Principales
 
@@ -185,28 +196,33 @@ Presionar `Ctrl+C` en la terminal
 - Numeración de líneas automática
 - Indicador de posición del cursor (Ln X, Col Y)
 
-#### 2. Pestaña "Consola"
-- Salida de ejecución del programa
-- Resultado de `println()`
-- Inicial: "Listo"
+#### 2. Pestaña "Consola" (Código ARM64)
+- Muestra el ensamblador ARM64 generado tras compilar
+- Fuente monoespaciada con scroll
+- Botón de descarga del archivo `.s`
 
-#### 3. Pestaña "Errores"
+#### 3. Pestaña "Salida" (Ejecución)
+- Resultado de ejecutar el programa via QEMU
+- Salida estándar en verde; errores de ensamblado/enlace/ejecución en rojo
+- Muestra el código de salida del proceso
+
+#### 4. Pestaña "Errores"
 - Lista de errores (Léxico, Sintáctico, Semántico)
 - Línea y columna exacta del error
 - Descripción legible en español
 - Badge con contador de errores
 
-#### 4. Pestaña "Símbolos"
+#### 5. Pestaña "Símbolos"
 - Tabla de símbolos (variables, funciones, constantes)
-- Información: Nombre, Tipo, Scope, Valor
-- Se actualiza después de cada ejecución
+- Información: Nombre, Tipo, Scope, Línea de declaración
+- Se actualiza después de cada compilación
 
-#### 5. Pestaña "Reportes"
-- Panel con 4 tarjetas descargables:
-  - Resultado de Ejecución (.txt)
-  - Reporte de Errores (.jpg)
-  - Tabla de Símbolos (.jpg)
-  - Árbol Sintáctico (.jpg)
+#### 6. Pestaña "Reportes"
+- Panel con tarjetas descargables:
+  - Código ARM64 → descargar `.s`
+  - Reporte de Errores → previsualizar / descargar JPG
+  - Tabla de Símbolos → previsualizar / descargar JPG
+  - Árbol Sintáctico (AST) → previsualizar / descargar JPG
 
 ---
 
@@ -233,17 +249,35 @@ func main() {
 }
 ```
 
-### 3. Ejecutar el Código
+### 3. Compilar el Código
 
 **Opción A: Botón**
 ```
-Clic en botón "Ejecutar" (play)
+Clic en botón "Compilar"
 ```
 
 **Opción B: Atajo de teclado**
 ```
 Ctrl + Enter
 ```
+
+El compilador genera ensamblador ARM64 visible en la pestaña **Consola**. Si hay errores semánticos o sintácticos, se muestran en la pestaña **Errores** y no se genera código.
+
+### 4. Ejecutar el Programa
+
+Tras una compilación exitosa, el botón **Ejecutar** se habilita.
+
+**Opción A: Botón**
+```
+Clic en botón "Ejecutar"
+```
+
+**Opción B: Atajo de teclado**
+```
+Ctrl + Shift + Enter
+```
+
+El backend ensambla el ARM64 con `aarch64-linux-gnu-as`, enlaza con `aarch64-linux-gnu-gcc -no-pie` y ejecuta con `qemu-aarch64-static`. La salida aparece en la pestaña **Salida**.
 
 ### 4. Guardar el Código
 
@@ -336,6 +370,24 @@ fibonacci│ func(int) │ global │ -
 | **Ámbito** | Contexto de declaración | global, main, if_block |
 | **Valor** | Valor actual o - | 42, "texto", - |
 
+### Funcionalidades Soportadas
+
+| Categoría | Característica |
+|-----------|----------------|
+| **Tipos** | `int32`, `float32`, `bool`, `rune`, `string` |
+| **Declaración** | `var x int32 = 5`, `x := 5`, declaración múltiple, constantes |
+| **Nil** | `var p *int32`, comparación `p == nil`, impresión `<nil>` |
+| **Aritmética** | `+`, `-`, `*`, `/`, `%`, operadores de asignación `+=`, `-=`, etc. |
+| **Comparación** | `==`, `!=`, `<`, `>`, `<=`, `>=` |
+| **Lógica** | `&&`, `\|\|`, `!`, cortocircuito |
+| **Control** | `if`, `if/else`, `switch/case/default`, `for`, `break`, `continue` |
+| **Funciones** | Sin parámetros, con parámetros, recursivas, múltiple retorno |
+| **Punteros** | `&x` pasa referencia, `*p = val` escribe a través de puntero |
+| **Arreglos 1D** | `[N]T{...}`, acceso e índices, paso a funciones por referencia |
+| **Arreglos 2D/3D** | `[R][C]T`, `[D][R][C]T`, acceso con strides correctos |
+| **Retorno de arreglo** | Funciones que retornan `[N]T` — copia inmediata en caller |
+| **Embebidas** | `fmt.Println`, `len`, `substr`, `now`, `typeOf` |
+
 ### Mensajes de Error Comunes
 
 | Error | Causa | Solución |
@@ -346,6 +398,8 @@ fibonacci│ func(int) │ global │ -
 | "Token no reconocido" | Carácter inválido | Usar caracteres válidos |
 | "Se esperaba ';'" | Falta marca de fin | Agregar `;` al final |
 | "Break/Continue fuera de bucle" | Usar fuera de loop | Envolver en for o switch |
+| Error de ensamblado | ARM64 inválido generado | Reportar — no debería ocurrir |
+| Segmentation fault en ejecución | Acceso inválido a memoria | Verificar índices de arreglos |
 
 ---
 
@@ -373,7 +427,8 @@ fibonacci│ func(int) │ global │ -
 
 | Atajo | Función |
 |-------|---------|
-| **Ctrl+Enter** | Ejecutar código |
+| **Ctrl+Enter** | Compilar código (genera ARM64) |
+| **Ctrl+Shift+Enter** | Ejecutar programa via QEMU |
 | **Ctrl+S** | Guardar archivo |
 | **Ctrl+A** | Seleccionar todo |
 | **Ctrl+Z** | Deshacer |
