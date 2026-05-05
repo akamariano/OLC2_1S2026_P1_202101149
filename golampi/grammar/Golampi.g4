@@ -227,7 +227,11 @@ expression
     ;
 
 logicalOr
-    : logicalAnd ( OR logicalAnd )*
+    : logicalXor ( OR logicalXor )*
+    ;
+
+logicalXor
+    : logicalAnd ( '^^' logicalAnd )*
     ;
 
 logicalAnd

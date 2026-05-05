@@ -1,7 +1,7 @@
 <?php
 
 /*
- * Generated from Golampi.g4 by ANTLR 4.13.1
+ * Generated from grammar/Golampi.g4 by ANTLR 4.13.1
  */
 
 namespace {
@@ -377,8 +377,8 @@ namespace {
 		    0, 0, 0, 551, 75, 1, 0, 0, 0, 552, 550, 1, 0, 0, 0, 553, 554, 5, 54, 
 		    0, 0, 554, 557, 5, 55, 0, 0, 555, 557, 3, 78, 39, 0, 556, 553, 1, 
 		    0, 0, 0, 556, 555, 1, 0, 0, 0, 557, 77, 1, 0, 0, 0, 558, 559, 3, 80, 
-		    40, 0, 559, 79, 1, 0, 0, 0, 560, 565, 3, 82, 41, 0, 561, 562, 5, 40, 
-		    0, 0, 562, 564, 3, 82, 41, 0, 563, 561, 1, 0, 0, 0, 564, 567, 1, 0, 
+		    40, 0, 559, 79, 1, 0, 0, 0, 560, 565, 3, 84, 42, 0, 561, 562, 5, 40, 
+		    0, 0, 562, 564, 3, 84, 42, 0, 563, 561, 1, 0, 0, 0, 564, 567, 1, 0, 
 		    0, 0, 565, 563, 1, 0, 0, 0, 565, 566, 1, 0, 0, 0, 566, 81, 1, 0, 0, 
 		    0, 567, 565, 1, 0, 0, 0, 568, 573, 3, 84, 42, 0, 569, 570, 5, 15, 
 		    0, 0, 570, 572, 3, 84, 42, 0, 571, 569, 1, 0, 0, 0, 572, 575, 1, 0, 
@@ -2620,7 +2620,7 @@ namespace {
 		    try {
 		        $this->enterOuterAlt($localContext, 1);
 		        $this->setState(560);
-		        $this->logicalXor();
+		        $this->logicalAnd();
 		        $this->setState(565);
 		        $this->errorHandler->sync($this);
 
@@ -2629,7 +2629,7 @@ namespace {
 		        	$this->setState(561);
 		        	$this->match(self::OR);
 		        	$this->setState(562);
-		        	$this->logicalXor();
+		        	$this->logicalAnd();
 		        	$this->setState(567);
 		        	$this->errorHandler->sync($this);
 		        	$_la = $this->input->LA(1);
@@ -3172,7 +3172,6 @@ namespace Context {
 	use Antlr\Antlr4\Runtime\Tree\TerminalNode;
 	use Antlr\Antlr4\Runtime\Tree\ParseTreeListener;
 	use GolampiParser;
-	use GolampiVisitor;
 	use GolampiListener;
 
 	class ProgramContext extends ParserRuleContext
@@ -3241,15 +3240,6 @@ namespace Context {
 			    $listener->exitProgram($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitProgram($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class FunctionDeclContext extends ParserRuleContext
@@ -3302,15 +3292,6 @@ namespace Context {
 			    $listener->exitFunctionDecl($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitFunctionDecl($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class ParamListContext extends ParserRuleContext
@@ -3349,15 +3330,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitParamList($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitParamList($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -3410,15 +3382,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitParam($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitParam($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -3479,15 +3442,6 @@ namespace Context {
 			    $listener->exitReturnType($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitReturnType($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class MultiReturnTypeContext extends ParserRuleContext
@@ -3535,15 +3489,6 @@ namespace Context {
 			    $listener->exitMultiReturnType($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitMultiReturnType($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class SliceTypeContext extends ParserRuleContext
@@ -3575,15 +3520,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitSliceType($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitSliceType($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -3623,15 +3559,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitBlock($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitBlock($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -3740,15 +3667,6 @@ namespace Context {
 			    $listener->exitStatement($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitStatement($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class VarDeclContext extends ParserRuleContext
@@ -3821,15 +3739,6 @@ namespace Context {
 			    $listener->exitVarDecl($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitVarDecl($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class VarShortDeclContext extends ParserRuleContext
@@ -3876,15 +3785,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitVarShortDecl($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitVarShortDecl($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -3933,15 +3833,6 @@ namespace Context {
 			    $listener->exitConstDecl($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitConstDecl($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class IdListContext extends ParserRuleContext
@@ -3981,15 +3872,6 @@ namespace Context {
 			    $listener->exitIdList($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitIdList($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class ExpListContext extends ParserRuleContext
@@ -4028,15 +3910,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitExpList($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitExpList($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -4079,15 +3952,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitArrayType($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitArrayType($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -4141,15 +4005,6 @@ namespace Context {
 			    $listener->exitArrayLiteral($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitArrayLiteral($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class ArrayElementsContext extends ParserRuleContext
@@ -4188,15 +4043,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitArrayElements($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitArrayElements($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -4237,15 +4083,6 @@ namespace Context {
 			    $listener->exitArrayRowElements($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitArrayRowElements($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class ArrayRowItemContext extends ParserRuleContext
@@ -4282,15 +4119,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitArrayRowItem($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitArrayRowItem($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -4335,15 +4163,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitArrayAccess($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitArrayAccess($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -4391,15 +4210,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitPtrAssign($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitPtrAssign($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -4450,15 +4260,6 @@ namespace Context {
 			    $listener->exitArrayAssign($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitArrayAssign($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class AssignmentContext extends ParserRuleContext
@@ -4500,15 +4301,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitAssignment($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitAssignment($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -4556,15 +4348,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitAssignOp($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitAssignOp($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -4625,15 +4408,6 @@ namespace Context {
 			    $listener->exitIfStmt($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitIfStmt($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class ForStmtContext extends ParserRuleContext
@@ -4686,15 +4460,6 @@ namespace Context {
 			    $listener->exitForStmt($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitForStmt($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class ForInitContext extends ParserRuleContext
@@ -4731,15 +4496,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitForInit($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitForInit($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -4782,15 +4538,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitForPost($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitForPost($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -4846,15 +4593,6 @@ namespace Context {
 			    $listener->exitSwitchStmt($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitSwitchStmt($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class CaseClauseContext extends ParserRuleContext
@@ -4904,15 +4642,6 @@ namespace Context {
 			    $listener->exitCaseClause($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitCaseClause($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class DefaultClauseContext extends ParserRuleContext
@@ -4957,15 +4686,6 @@ namespace Context {
 			    $listener->exitDefaultClause($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitDefaultClause($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class BreakStmtContext extends ParserRuleContext
@@ -4997,15 +4717,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitBreakStmt($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitBreakStmt($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -5039,15 +4750,6 @@ namespace Context {
 			    $listener->exitContinueStmt($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitContinueStmt($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class IncDecStmtContext extends ParserRuleContext
@@ -5079,15 +4781,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitIncDecStmt($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitIncDecStmt($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -5126,15 +4819,6 @@ namespace Context {
 			    $listener->exitReturnStmt($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitReturnStmt($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class FunctionCallContext extends ParserRuleContext
@@ -5171,15 +4855,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitFunctionCall($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitFunctionCall($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -5220,15 +4895,6 @@ namespace Context {
 			    $listener->exitQualifiedName($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitQualifiedName($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class ArgListContext extends ParserRuleContext
@@ -5267,15 +4933,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitArgList($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitArgList($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -5319,15 +4976,6 @@ namespace Context {
 			    $listener->exitArgItem($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitArgItem($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class ExpressionContext extends ParserRuleContext
@@ -5360,15 +5008,6 @@ namespace Context {
 			    $listener->exitExpression($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitExpression($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class LogicalOrContext extends ParserRuleContext
@@ -5384,15 +5023,15 @@ namespace Context {
 	    }
 
 	    /**
-	     * @return array<LogicalXorContext>|LogicalXorContext|null
+	     * @return array<LogicalAndContext>|LogicalAndContext|null
 	     */
-	    public function logicalXor(?int $index = null)
+	    public function logicalAnd(?int $index = null)
 	    {
 	    	if ($index === null) {
-	    		return $this->getTypedRuleContexts(LogicalXorContext::class);
+	    		return $this->getTypedRuleContexts(LogicalAndContext::class);
 	    	}
 
-	        return $this->getTypedRuleContext(LogicalXorContext::class, $index);
+	        return $this->getTypedRuleContext(LogicalAndContext::class, $index);
 	    }
 
 	    /**
@@ -5419,15 +5058,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitLogicalOr($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitLogicalOr($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -5467,15 +5097,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitLogicalXor($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitLogicalXor($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -5527,15 +5148,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitLogicalAnd($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitLogicalAnd($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -5599,15 +5211,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitEquality($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitEquality($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -5696,15 +5299,6 @@ namespace Context {
 			    $listener->exitComparison($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitComparison($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class TermContext extends ParserRuleContext
@@ -5767,15 +5361,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitTerm($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitTerm($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -5852,15 +5437,6 @@ namespace Context {
 			    $listener->exitFactor($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitFactor($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class UnaryContext extends ParserRuleContext
@@ -5912,15 +5488,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitUnary($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitUnary($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -6009,15 +5576,6 @@ namespace Context {
 			    $listener->exitPrimary($this);
 		    }
 		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitPrimary($this);
-		    }
-
-			return $visitor->visitChildren($this);
-		}
 	} 
 
 	class TypeCastContext extends ParserRuleContext
@@ -6054,15 +5612,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitTypeCast($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitTypeCast($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 
@@ -6115,15 +5664,6 @@ namespace Context {
 			if ($listener instanceof GolampiListener) {
 			    $listener->exitType($this);
 		    }
-		}
-
-		public function accept(ParseTreeVisitor $visitor): mixed
-		{
-			if ($visitor instanceof GolampiVisitor) {
-			    return $visitor->visitType($this);
-		    }
-
-			return $visitor->visitChildren($this);
 		}
 	} 
 }

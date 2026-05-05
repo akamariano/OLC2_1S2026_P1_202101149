@@ -135,7 +135,7 @@ class SemanticVisitor extends GolampiBaseVisitor
     {
         try {
             return $exprCtx->logicalOr()
-                ->logicalAnd(0)->equality(0)->comparison(0)
+                ->logicalXor(0)->logicalAnd(0)->equality(0)->comparison(0)
                 ->term(0)->factor(0)->unary(0)->primary();
         } catch (\Throwable $e) { return null; }
     }
@@ -1058,9 +1058,9 @@ class SemanticVisitor extends GolampiBaseVisitor
     // valida operaciones lógicas OR con análisis de tipos
     public function visitLogicalOr($ctx)
     {
-        $type = $this->visit($ctx->logicalAnd(0));
-        for ($i = 1; $i < count($ctx->logicalAnd()); $i++) {
-            $right = $this->visit($ctx->logicalAnd($i));
+        $type = $this->visit($ctx->logicalXor(0));
+        for ($i = 1; $i < count($ctx->logicalXor()); $i++) {
+            $right = $this->visit($ctx->logicalXor($i));
             if ($type !== null && $type !== 'bool') {
                 $this->addError("Operación '||' inválida entre '$type' y '$right'.", $ctx);
             }
@@ -1069,6 +1069,18 @@ class SemanticVisitor extends GolampiBaseVisitor
         return $type;
     }
 
+    public function visitLogicalXor($ctx)
+    {
+        $type = $this->visit($ctx->logicalAnd(0));
+        for ($i = 1; $i < count($ctx->logicalAnd()); $i++) {
+            $right = $this->visit($ctx->logicalAnd($i));
+            if ($type !== null && $type !== 'bool') {
+                $this->addError("Operación '^^' inválida para tipo '$type'.", $ctx);
+            }
+            $type = 'bool';
+        }
+        return $type;
+    }
     // valida operaciones lógicas AND con análisis de tipos
     public function visitLogicalAnd($ctx)
     {

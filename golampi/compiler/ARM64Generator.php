@@ -295,8 +295,10 @@ class ARM64Generator extends \GolampiBaseVisitor
     {
         try {
             $lo = $exprCtx->logicalOr();
-            if (count($lo->logicalAnd()) !== 1) return null;
-            $la = $lo->logicalAnd()[0];
+            if (count($lo->logicalXor()) !== 1) return null;
+            $lx = $lo->logicalXor()[0];
+            if (count($lx->logicalAnd()) !== 1) return null;
+            $la = $lx->logicalAnd()[0];
             if (count($la->equality()) !== 1) return null;
             $eq = $la->equality()[0];
             if (count($eq->comparison()) !== 1) return null;
@@ -1493,18 +1495,18 @@ class ARM64Generator extends \GolampiBaseVisitor
 
     private function genLogicalOr($ctx): void
     {
-        $children = $ctx->logicalAnd();
-        if (count($children) === 1) { $this->genLogicalAnd($children[0]); return; }
+        $children = $ctx->logicalXor();
+        if (count($children) === 1) { $this->genLogicalXor($children[0]); return; }
 
         // evaluación de cortocircuito: a || b → si a es true, saltar al true
         $lblTrue = $this->newLabel('.Lor_t');
         $lblEnd  = $this->newLabel('.Lor_e');
 
-        $this->genLogicalAnd($children[0]);
+        $this->genLogicalXor($children[0]);
         $this->emit("cbnz w0, {$lblTrue}");   // cortocircuito
 
         for ($i = 1; $i < count($children); $i++) {
-            $this->genLogicalAnd($children[$i]);
+            $this->genLogicalXor($children[$i]);
             if ($i < count($children) - 1) {
                 $this->emit("cbnz w0, {$lblTrue}");
             }
@@ -1516,6 +1518,19 @@ class ARM64Generator extends \GolampiBaseVisitor
         $this->emitLabel($lblEnd);
     }
 
+    private function genLogicalXor($ctx): void
+    {
+        $children = $ctx->logicalAnd();
+        if (count($children) === 1) { $this->genLogicalAnd($children[0]); return; }
+        $this->genLogicalAnd($children[0]);
+        for ($i = 1; $i < count($children); $i++) {
+            $this->emit("str  w0, [sp, #-16]!");
+            $this->genLogicalAnd($children[$i]);
+            $this->emit("ldr  w1, [sp], #16");
+            $this->emit("eor  w0, w1, w0");
+            $this->emit("and  w0, w0, #1");
+        }
+    }
     private function genLogicalAnd($ctx): void
     {
         $children = $ctx->equality();
@@ -1972,10 +1987,13 @@ class ARM64Generator extends \GolampiBaseVisitor
         try {
             $lo = $exprCtx->logicalOr();
 
-            // si hay múltiples AND/OR, es booleano
-            if (count($lo->logicalAnd()) > 1) return 'bool';
+            // si hay múltiples XOR/OR, es booleano
+            if (count($lo->logicalXor()) > 1) return 'bool';
 
-            $la = $lo->logicalAnd()[0];
+            $lx = $lo->logicalXor()[0];
+            if (count($lx->logicalAnd()) > 1) return 'bool';
+
+            $la = $lx->logicalAnd()[0];
             if (count($la->equality()) > 1) return 'bool';
 
             $eq = $la->equality()[0];
